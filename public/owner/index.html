@@ -16,6 +16,7 @@
         <span>Perigee Owner Dashboard</span>
       </a>
       <nav class="nav-links" aria-label="Owner navigation">
+        <a href="#reviewsAdmin">Review approvals</a>
         <a href="/logs/">Logs & archives</a>
         <a href="/portal/">Customer portal</a>
         <button id="refreshDashboard" class="btn small secondary" type="button">Refresh</button>
@@ -41,6 +42,7 @@
           <div><strong id="statMembers">0</strong><span>Active member work orders</span></div>
           <div><strong id="statGuests">0</strong><span>Guest requests</span></div>
           <div><strong id="statAccounts">0</strong><span>Portal accounts</span></div>
+          <div><strong id="statReviews">0</strong><span>Reviews pending approval</span></div>
         </div>
         <div class="field" style="margin-top:16px">
           <label for="dashboardSearch">Search dashboard</label>
@@ -94,6 +96,32 @@
                 </tr>
               </thead>
               <tbody id="appointmentsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="reviewsAdmin" class="card table-card dashboard-card">
+          <div class="section-head compact-head">
+            <div>
+              <h2>Review approvals</h2>
+              <p id="reviewCountBadge" class="muted">0 reviews</p>
+            </div>
+          </div>
+          <div id="reviewEmptyState" class="notice">No reviews loaded yet.</div>
+          <div class="table-wrap">
+            <table aria-label="Website reviews">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Rating</th>
+                  <th>Customer</th>
+                  <th>Review</th>
+                  <th>Service</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="reviewsBody"></tbody>
             </table>
           </div>
         </section>

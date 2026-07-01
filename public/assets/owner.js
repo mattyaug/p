@@ -5,6 +5,9 @@ const emptyState = document.querySelector("#emptyState");
 const memberEmptyState = document.querySelector("#memberEmptyState");
 const countBadge = document.querySelector("#countBadge");
 const memberCountBadge = document.querySelector("#memberCountBadge");
+const reviewsBody = document.querySelector("#reviewsBody");
+const reviewEmptyState = document.querySelector("#reviewEmptyState");
+const reviewCountBadge = document.querySelector("#reviewCountBadge");
 const tokenStatus = document.querySelector("#tokenStatus");
 const searchInput = document.querySelector("#dashboardSearch");
 const filterInput = document.querySelector("#dashboardFilter");
@@ -12,9 +15,11 @@ const statTotal = document.querySelector("#statTotal");
 const statMembers = document.querySelector("#statMembers");
 const statGuests = document.querySelector("#statGuests");
 const statAccounts = document.querySelector("#statAccounts");
+const statReviews = document.querySelector("#statReviews");
 
 let allAppointments = [];
 let allMembers = [];
+let allReviews = [];
 
 function formatDateTime(dateValue, timeValue) {
   if (!dateValue) return "—";
@@ -52,6 +57,17 @@ function membershipDetailLabel(status) {
   return `Portal account: membership ${status || "pending"}`;
 }
 
+function reviewStatusClass(status) {
+  if (status === "approved") return "completed";
+  if (status === "rejected") return "canceled";
+  return "requested";
+}
+
+function renderStars(rating) {
+  const value = Math.max(1, Math.min(5, Number(rating) || 5));
+  return "★".repeat(value) + "☆".repeat(5 - value);
+}
+
 function matchesAppointmentFilter(item) {
   const selected = filterInput.value;
   const type = customerTypeLabel(item);
@@ -74,6 +90,7 @@ function renderStats() {
   statMembers.textContent = visible.filter((item) => customerTypeLabel(item).group === "member").length;
   statGuests.textContent = visible.filter((item) => customerTypeLabel(item).group === "guest").length;
   statAccounts.textContent = allMembers.length;
+  if (statReviews) statReviews.textContent = allReviews.filter((item) => item.status === "pending").length;
 }
 
 function renderRows() {
@@ -102,6 +119,30 @@ function renderRows() {
       </td>
     </tr>`;
   }).join("");
+}
+
+function renderReviews() {
+  if (!reviewsBody) return;
+  reviewCountBadge.textContent = `${allReviews.length} review${allReviews.length === 1 ? "" : "s"}`;
+  reviewEmptyState.classList.toggle("hidden", allReviews.length > 0);
+  reviewsBody.innerHTML = allReviews.map((item) => `
+    <tr>
+      <td><span class="status ${reviewStatusClass(item.status)}">${escapeHtml(item.status)}</span><br><span class="muted">${escapeHtml(item.source || "website")}</span></td>
+      <td><span class="stars small-stars">${escapeHtml(renderStars(item.rating))}</span><br><span class="muted">${escapeHtml(item.rating)}/5</span></td>
+      <td><strong>${escapeHtml(item.customer_name)}</strong><br><a href="mailto:${escapeHtml(item.email)}">${escapeHtml(item.email)}</a><br><span class="muted">${escapeHtml(item.city || "Portland")}</span></td>
+      <td>${escapeHtml(item.review_text)}</td>
+      <td>${escapeHtml(item.service || "—")}</td>
+      <td>${escapeHtml(new Date(item.created_at).toLocaleString())}</td>
+      <td>
+        <div class="admin-actions">
+          <button class="btn small secondary" data-review-action="approved" data-id="${item.id}">Approve</button>
+          <button class="btn small secondary" data-review-action="pending" data-id="${item.id}">Pending</button>
+          <button class="btn small danger" data-review-action="rejected" data-id="${item.id}">Reject</button>
+          <button class="btn small danger outline-danger" data-review-delete="1" data-id="${item.id}">Delete</button>
+        </div>
+      </td>
+    </tr>
+  `).join("");
 }
 
 function renderMembers() {
@@ -141,17 +182,20 @@ async function fetchAdmin(path, options = {}) {
 async function loadDashboard() {
   refreshButton.disabled = true;
   try {
-    const [appointmentsData, membersData] = await Promise.all([
+    const [appointmentsData, membersData, reviewsData] = await Promise.all([
       fetchAdmin("/api/admin/appointments"),
       fetchAdmin("/api/admin/members"),
+      fetchAdmin("/api/admin/reviews"),
     ]);
     tokenStatus.className = "notice success";
     tokenStatus.textContent = "Private owner access verified.";
     tokenStatus.classList.remove("hidden");
     allAppointments = appointmentsData.appointments || [];
     allMembers = membersData.members || [];
+    allReviews = reviewsData.reviews || [];
     renderStats();
     renderRows();
+    renderReviews();
     renderMembers();
   } catch (error) {
     if (String(error.message).includes("Cloudflare Access")) return;
@@ -160,8 +204,10 @@ async function loadDashboard() {
     tokenStatus.classList.remove("hidden");
     allAppointments = [];
     allMembers = [];
+    allReviews = [];
     renderStats();
     renderRows();
+    renderReviews();
     renderMembers();
   } finally {
     refreshButton.disabled = false;
@@ -212,6 +258,33 @@ async function updateMemberStatus(id, membershipStatus) {
   }
 }
 
+async function updateReviewStatus(id, status) {
+  try {
+    await fetchAdmin(`/api/admin/reviews/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+    await loadDashboard();
+  } catch (error) {
+    tokenStatus.className = "notice error";
+    tokenStatus.textContent = error.message || "Could not update review.";
+    tokenStatus.classList.remove("hidden");
+  }
+}
+
+async function deleteReview(id) {
+  const confirmed = window.confirm("Delete this review permanently? This removes it from the review approval list.");
+  if (!confirmed) return;
+  try {
+    await fetchAdmin(`/api/admin/reviews/${id}`, { method: "DELETE" });
+    await loadDashboard();
+  } catch (error) {
+    tokenStatus.className = "notice error";
+    tokenStatus.textContent = error.message || "Could not delete review.";
+    tokenStatus.classList.remove("hidden");
+  }
+}
+
 
 refreshButton.addEventListener("click", loadDashboard);
 searchInput.addEventListener("input", renderRows);
@@ -232,5 +305,17 @@ membersBody.addEventListener("click", async (event) => {
   if (!button) return;
   await updateMemberStatus(button.dataset.id, button.dataset.memberAction);
 });
+
+if (reviewsBody) {
+  reviewsBody.addEventListener("click", async (event) => {
+    const actionButton = event.target.closest("button[data-review-action]");
+    if (actionButton) {
+      await updateReviewStatus(actionButton.dataset.id, actionButton.dataset.reviewAction);
+      return;
+    }
+    const deleteButton = event.target.closest("button[data-review-delete]");
+    if (deleteButton) await deleteReview(deleteButton.dataset.id);
+  });
+}
 
 loadDashboard();

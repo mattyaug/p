@@ -101,3 +101,23 @@ ON membership_payments (email);
 
 CREATE INDEX IF NOT EXISTS idx_membership_payments_status
 ON membership_payments (status);
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id TEXT PRIMARY KEY,
+  customer_name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  city TEXT NOT NULL DEFAULT 'Portland',
+  rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+  review_text TEXT NOT NULL,
+  service TEXT DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+  source TEXT DEFAULT 'public_submission',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_status
+ON reviews (status);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_created_at
+ON reviews (created_at);

@@ -22,6 +22,7 @@
         <a href="#membership">Membership</a>
         <a href="#services">Services</a>
         <a href="#addons">Add-ons</a>
+        <a href="#reviews">Reviews</a>
         <a href="/portal/">Portal</a>
         <a class="btn small" href="/portal/">Book service</a>
       </nav>
@@ -32,9 +33,9 @@
     <section class="hero">
       <div class="container hero-grid">
         <div>
-          <div class="kicker">Portland exterior property care</div>
-          <h1>Keep your property cared for without chasing every appointment.</h1>
-          <p class="lead">Perigee gives homeowners and property owners a clear monthly membership: up to weekly mowing services, 4 yearly fertilization services, twice yearly gutter cleaning, free inspections and quotes, priority scheduling, and discounted rates on other services.</p>
+          <div class="kicker">Serving Portland</div>
+          <h1>Property care built for Portland homeowners.</h1>
+          <p class="lead">Serving Portland with consistent exterior property care, Perigee gives homeowners and property owners a clear monthly membership: up to weekly mowing services, 4 yearly fertilization services, twice yearly gutter cleaning, free inspections and quotes, priority scheduling, and discounted rates on other services.</p>
           <div class="hero-actions">
             <a class="btn gold" data-membership-link href="https://buy.stripe.com/4gM7sNewm0td1JwaBs8og00">Start the $199/month membership</a>
             <a class="btn secondary" href="/portal/">Schedule a service</a>
@@ -49,7 +50,7 @@
           <img class="logo large" src="/assets/perigee-logo.jpeg" alt="Perigee Property Management logo" />
           <div class="price-card">
             <h2 id="membership">Perigee Membership</h2>
-            <p>One monthly plan for core exterior care in Portland.</p>
+            <p>One monthly plan for core exterior care serving Portland.</p>
             <div class="price"><strong>$199</strong><span>/month</span></div>
             <ul class="checklist">
               <li>Up to weekly mowing services</li>
@@ -66,14 +67,29 @@
       </div>
     </section>
 
+    <section class="portland-section">
+      <div class="container grid-2 portland-grid">
+        <div>
+          <div class="kicker">Portland first</div>
+          <h2>Serving Portland with organized exterior property care.</h2>
+          <p class="lead">Perigee is focused on Portland properties and the recurring exterior work they need throughout the year: mowing and edging, gutter cleaning, fertilizer scheduling, inspections, quotes, and member-priority service requests.</p>
+          <p class="muted">Whether you manage one home or want a more predictable care routine, the Perigee portal keeps Portland service requests simple and trackable.</p>
+        </div>
+        <div class="city-photo-grid" aria-label="Portland service area photos">
+          <img src="/assets/portland-water-tower.png" alt="Portland water tower and surrounding service area" />
+          <img src="/assets/portland-coastal-aerial.png" alt="Aerial view of Portland near the water" />
+        </div>
+      </div>
+    </section>
+
     <section id="services">
       <div class="container">
         <div class="section-head">
           <div>
-            <div class="kicker">Built for consistency</div>
-            <h2>Exactly what the membership includes.</h2>
+            <div class="kicker">Serving Portland consistently</div>
+            <h2>Exactly what the Portland membership includes.</h2>
           </div>
-          <p>The $199/month membership provides the services listed here. Add-on services outside these inclusions are available at discounted member rates.</p>
+          <p>The $199/month membership provides the services listed here for eligible Portland properties. Add-on services outside these inclusions are available at discounted member rates.</p>
         </div>
 
         <div class="grid-3">
@@ -135,6 +151,61 @@
       </div>
     </section>
 
+    <section id="reviews" class="reviews-section">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <div class="kicker">Portland reviews</div>
+            <h2>Hear from Perigee customers.</h2>
+          </div>
+          <p>Reviews submitted through the website are reviewed before they appear publicly.</p>
+        </div>
+
+        <div id="reviewsGrid" class="reviews-grid" aria-live="polite">
+          <div class="notice">Approved customer reviews will appear here.</div>
+        </div>
+
+        <div class="card form-card review-form-card">
+          <h3>Submit a review</h3>
+          <p class="muted">Share your Perigee experience. Reviews are shown publicly only after approval.</p>
+          <form id="reviewForm" class="review-form">
+            <div class="field-grid">
+              <div class="field">
+                <label for="reviewName">Name</label>
+                <input id="reviewName" name="customerName" required placeholder="Your name" />
+              </div>
+              <div class="field">
+                <label for="reviewEmail">Email</label>
+                <input id="reviewEmail" name="email" type="email" required placeholder="you@example.com" />
+              </div>
+            </div>
+            <div class="field-grid">
+              <div class="field">
+                <label for="reviewRating">Rating</label>
+                <select id="reviewRating" name="rating" required>
+                  <option value="5">★★★★★ 5 stars</option>
+                  <option value="4">★★★★☆ 4 stars</option>
+                  <option value="3">★★★☆☆ 3 stars</option>
+                  <option value="2">★★☆☆☆ 2 stars</option>
+                  <option value="1">★☆☆☆☆ 1 star</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="reviewService">Service</label>
+                <input id="reviewService" name="service" placeholder="Mowing and edging, inspection, etc." />
+              </div>
+            </div>
+            <div class="field">
+              <label for="reviewText">Review</label>
+              <textarea id="reviewText" name="reviewText" required placeholder="Tell us about your experience with Perigee in Portland."></textarea>
+            </div>
+            <button class="btn green" type="submit">Submit review for approval</button>
+            <p id="reviewFormStatus" class="notice hidden" role="status"></p>
+          </form>
+        </div>
+      </div>
+    </section>
+
     <section>
       <div class="container grid-2">
         <div>
@@ -158,7 +229,7 @@
     <div class="container footer-grid">
       <div>
         <strong>Perigee Property Management</strong>
-        <p>Exterior property care for Portland.</p>
+        <p>Serving Portland with exterior property care.</p>
       </div>
       <div>
         <p><a href="mailto:ma@goperigee.com">ma@goperigee.com</a></p>

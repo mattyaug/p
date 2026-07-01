@@ -37,3 +37,77 @@ async function loadMemberCount() {
 }
 
 loadMemberCount();
+
+
+function renderStars(rating) {
+  const value = Math.max(1, Math.min(5, Number(rating) || 5));
+  return "★".repeat(value) + "☆".repeat(5 - value);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function loadReviews() {
+  const grid = document.querySelector("#reviewsGrid");
+  if (!grid) return;
+  try {
+    const response = await fetch("/api/reviews");
+    if (!response.ok) return;
+    const data = await response.json();
+    const reviews = data.reviews || [];
+    if (!reviews.length) {
+      grid.innerHTML = '<div class="notice">Approved customer reviews will appear here.</div>';
+      return;
+    }
+    grid.innerHTML = reviews.map((review) => `
+      <article class="review-card">
+        <div class="stars" aria-label="${escapeHtml(review.rating)} out of 5 stars">${renderStars(review.rating)}</div>
+        <p>“${escapeHtml(review.review_text)}”</p>
+        <div class="review-meta"><strong>${escapeHtml(review.customer_name)}</strong><span>${escapeHtml(review.city || "Portland")}${review.service ? ` · ${escapeHtml(review.service)}` : ""}</span></div>
+      </article>
+    `).join("");
+  } catch (error) {
+    console.warn("Reviews unavailable", error);
+  }
+}
+
+async function submitReview(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const status = document.querySelector("#reviewFormStatus");
+  const submit = form.querySelector('button[type="submit"]');
+  const formData = new FormData(form);
+  const payload = Object.fromEntries(formData.entries());
+  payload.city = "Portland";
+  payload.rating = Number(payload.rating || 5);
+  status.className = "notice";
+  status.textContent = "Submitting review...";
+  submit.disabled = true;
+  try {
+    const response = await fetch("/api/reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not submit review.");
+    status.className = "notice success";
+    status.textContent = data.message || "Thank you. Your review was submitted for approval.";
+    form.reset();
+  } catch (error) {
+    status.className = "notice error";
+    status.textContent = error.message || "Could not submit review.";
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+loadReviews();
+const reviewForm = document.querySelector("#reviewForm");
+if (reviewForm) reviewForm.addEventListener("submit", submitReview);

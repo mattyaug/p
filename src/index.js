@@ -36,6 +36,14 @@ export default {
         return handleMemberCount(env);
       }
 
+      if (url.pathname === "/api/reviews" && request.method === "GET") {
+        return handlePublicReviews(request, env);
+      }
+
+      if (url.pathname === "/api/reviews" && request.method === "POST") {
+        return handleSubmitReview(request, env);
+      }
+
       // Stripe webhook for automatic membership activation after payment.
       if (url.pathname === "/api/stripe/webhook" && request.method === "POST") {
         return handleStripeWebhook(request, env);
@@ -97,6 +105,18 @@ export default {
 
       if (url.pathname === "/api/admin/archive" && request.method === "GET") {
         return handleAdminArchive(request, env);
+      }
+
+      if (url.pathname === "/api/admin/reviews" && request.method === "GET") {
+        return handleAdminReviews(request, env);
+      }
+
+      const reviewIdMatch = url.pathname.match(/^\/api\/admin\/reviews\/([^/]+)$/);
+      if (reviewIdMatch && request.method === "PATCH") {
+        return handleUpdateReview(request, env, reviewIdMatch[1]);
+      }
+      if (reviewIdMatch && request.method === "DELETE") {
+        return handleDeleteReview(request, env, reviewIdMatch[1]);
       }
 
       if (url.pathname === "/api/admin/members" && request.method === "GET") {
@@ -488,6 +508,119 @@ async function handleCustomerCreateAppointment(request, env) {
   const emailResult = await sendMemberWorkOrderEmail(env, appointment, auth.member);
 
   return json({ ok: true, appointment, emailSent: emailResult.ok, emailWarning: emailResult.ok ? null : emailResult.warning }, 201);
+}
+
+
+async function handlePublicReviews(request, env) {
+  if (!env.DB) return json({ reviews: [] }, 200, { "Cache-Control": "public, max-age=120" });
+  await ensureReviewsSchema(env);
+  const result = await env.DB.prepare(`
+    SELECT id, customer_name, city, rating, review_text, service, created_at
+    FROM reviews
+    WHERE status = 'approved'
+    ORDER BY created_at DESC
+    LIMIT 60
+  `).all();
+  return json({ reviews: result.results || [] }, 200, { "Cache-Control": "public, max-age=120" });
+}
+
+async function handleSubmitReview(request, env) {
+  if (!env.DB) return json({ error: "Database binding DB is not configured." }, 500);
+  await ensureReviewsSchema(env);
+
+  const payload = await request.json().catch(() => null);
+  if (!payload) return json({ error: "Invalid review request." }, 400);
+
+  const customerName = trimLimit(payload.customerName, 120);
+  const email = trimLimit(payload.email, 160).toLowerCase();
+  const city = trimLimit(payload.city || "Portland", 80) || "Portland";
+  const service = trimLimit(payload.service || "Perigee Membership", 120) || "Perigee Membership";
+  const reviewText = trimLimit(payload.reviewText, 1200);
+  const rating = Number(payload.rating);
+
+  if (!customerName || !email || !reviewText) return json({ error: "Name, email, and review are required." }, 400);
+  if (!isValidEmail(email)) return json({ error: "Please enter a valid email." }, 400);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) return json({ error: "Please choose a rating from 1 to 5 stars." }, 400);
+
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await env.DB.prepare(`
+    INSERT INTO reviews (id, customer_name, email, city, rating, review_text, service, status, source, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'public_submission', ?, ?)
+  `).bind(id, customerName, email, city, rating, reviewText, service, now, now).run();
+
+  await logOwnerEvent(env, {
+    eventType: "review_submitted",
+    entityType: "review",
+    entityId: id,
+    title: `New review submitted by ${customerName}`,
+    details: JSON.stringify({ email, city, rating, service }),
+  });
+  await sendReviewNotificationEmail(env, { customerName, email, city, rating, reviewText, service, createdAt: now });
+
+  return json({ ok: true, message: "Thank you. Your review has been submitted for approval." }, 201);
+}
+
+async function handleAdminReviews(request, env) {
+  const auth = await authorize(request, env);
+  if (!auth.ok) return json({ error: auth.error }, auth.status);
+  if (!env.DB) return json({ error: "Database binding DB is not configured." }, 500);
+  await ensureReviewsSchema(env);
+
+  const result = await env.DB.prepare(`
+    SELECT id, customer_name, email, city, rating, review_text, service, status, source, created_at, updated_at
+    FROM reviews
+    ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, created_at DESC
+    LIMIT 500
+  `).all();
+  return json({ reviews: result.results || [] });
+}
+
+async function handleUpdateReview(request, env, id) {
+  const auth = await authorize(request, env);
+  if (!auth.ok) return json({ error: auth.error }, auth.status);
+  if (!env.DB) return json({ error: "Database binding DB is not configured." }, 500);
+  await ensureReviewsSchema(env);
+
+  id = String(id || "").trim();
+  const payload = await request.json().catch(() => null);
+  const status = String(payload?.status || "").trim().toLowerCase();
+  if (!["pending", "approved", "rejected"].includes(status)) return json({ error: "Invalid review status." }, 400);
+
+  const now = new Date().toISOString();
+  const result = await env.DB.prepare("UPDATE reviews SET status = ?, updated_at = ? WHERE id = ?")
+    .bind(status, now, id).run();
+  if (!result.meta || result.meta.changes === 0) return json({ error: "Review not found." }, 404);
+
+  await logOwnerEvent(env, {
+    eventType: "review_status_updated",
+    entityType: "review",
+    entityId: id,
+    title: `Review marked ${status}`,
+    details: JSON.stringify({ status }),
+  });
+  return json({ ok: true, id, status });
+}
+
+async function handleDeleteReview(request, env, id) {
+  const auth = await authorize(request, env);
+  if (!auth.ok) return json({ error: auth.error }, auth.status);
+  if (!env.DB) return json({ error: "Database binding DB is not configured." }, 500);
+  await ensureReviewsSchema(env);
+
+  id = String(id || "").trim();
+  const existing = await env.DB.prepare("SELECT id, customer_name, email, rating FROM reviews WHERE id = ? LIMIT 1").bind(id).first();
+  if (!existing) return json({ error: "Review not found." }, 404);
+
+  await env.DB.prepare("DELETE FROM reviews WHERE id = ?").bind(id).run();
+  await logOwnerEvent(env, {
+    eventType: "review_deleted",
+    entityType: "review",
+    entityId: id,
+    title: `Review deleted: ${existing.customer_name}`,
+    details: JSON.stringify({ email: existing.email, rating: existing.rating }),
+  });
+  return json({ ok: true, id });
 }
 
 async function handleListAppointments(request, env) {
@@ -1023,6 +1156,55 @@ async function ensureOwnerSchema(env) {
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_owner_logs_entity ON owner_logs (entity_type, entity_id)").run().catch(() => null);
 }
 
+
+async function ensureReviewsSchema(env) {
+  if (!env.DB) return;
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS reviews (
+      id TEXT PRIMARY KEY,
+      customer_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      city TEXT NOT NULL DEFAULT 'Portland',
+      rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+      review_text TEXT NOT NULL,
+      service TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+      source TEXT DEFAULT 'public_submission',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `).run().catch(() => null);
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_reviews_status ON reviews (status)").run().catch(() => null);
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_reviews_created_at ON reviews (created_at)").run().catch(() => null);
+  await seedSampleReviews(env);
+}
+
+async function seedSampleReviews(env) {
+  const countRow = await env.DB.prepare("SELECT COUNT(*) AS count FROM reviews WHERE source = 'starter_sample'").first().catch(() => null);
+  if (Number(countRow?.count || 0) > 0) return;
+  const now = new Date().toISOString();
+  const samples = [
+    ["starter-review-001", "Portland homeowner sample 1", "sample1@goperigee.com", 5, "Reliable mowing and edging with clear communication. This is the kind of recurring property care busy Portland homeowners look for.", "Mowing and edging"],
+    ["starter-review-002", "Portland homeowner sample 2", "sample2@goperigee.com", 5, "The membership makes scheduling exterior care much easier. The included inspections and quotes are especially useful.", "Perigee Membership"],
+    ["starter-review-003", "Portland homeowner sample 3", "sample3@goperigee.com", 5, "Good fit for keeping a property looking consistent without having to remember every seasonal service.", "Perigee Membership"],
+    ["starter-review-004", "Portland homeowner sample 4", "sample4@goperigee.com", 5, "The combination of mowing, gutter cleaning, and fertilizer scheduling is simple and practical.", "Perigee Membership"],
+    ["starter-review-005", "Portland homeowner sample 5", "sample5@goperigee.com", 5, "Priority scheduling is a strong benefit, especially when the weather shifts and work needs to be handled quickly.", "Priority scheduling"],
+    ["starter-review-006", "Portland homeowner sample 6", "sample6@goperigee.com", 5, "Professional, organized, and easy to request service through the portal. The property care package is straightforward.", "Customer portal"],
+    ["starter-review-007", "Portland homeowner sample 7", "sample7@goperigee.com", 5, "The free inspections and quotes help identify what needs attention before small issues become bigger projects.", "Inspections and quotes"],
+    ["starter-review-008", "Portland homeowner sample 8", "sample8@goperigee.com", 5, "Great concept for Portland properties that need consistent upkeep throughout the year.", "Perigee Membership"],
+    ["starter-review-009", "Portland homeowner sample 9", "sample9@goperigee.com", 5, "Having discounted add-on options for window cleaning, roof cleaning, and other exterior services is a helpful bonus.", "Discounted add-ons"],
+    ["starter-review-010", "Portland homeowner sample 10", "sample10@goperigee.com", 5, "The service request process is clear and simple. It is easy to see what is included in the monthly membership.", "Service request"],
+    ["starter-review-011", "Portland homeowner sample 11", "sample11@goperigee.com", 5, "This kind of plan works well for people who want predictable exterior maintenance in Portland.", "Perigee Membership"],
+    ["starter-review-012", "Portland homeowner sample 12", "sample12@goperigee.com", 5, "The membership is organized around the services homeowners actually need on a recurring basis.", "Perigee Membership"],
+    ["starter-review-013", "Portland homeowner sample 13", "sample13@goperigee.com", 4, "Strong service package and a helpful portal. The clear list of included services makes the plan easy to understand.", "Perigee Membership"]
+  ];
+  const stmt = env.DB.prepare(`
+    INSERT OR IGNORE INTO reviews (id, customer_name, email, city, rating, review_text, service, status, source, created_at, updated_at)
+    VALUES (?, ?, ?, 'Portland', ?, ?, ?, 'pending', 'starter_sample', ?, ?)
+  `);
+  await env.DB.batch(samples.map((row) => stmt.bind(row[0], row[1], row[2], row[3], row[4], row[5], now, now))).catch((error) => console.error("Sample review seed failed", error));
+}
+
 async function logOwnerEvent(env, event) {
   if (!env.DB) return;
   try {
@@ -1041,6 +1223,30 @@ async function logOwnerEvent(env, event) {
     ).run();
   } catch (error) {
     console.error("Owner log write failed", error);
+  }
+}
+
+
+async function sendReviewNotificationEmail(env, review) {
+  const apiKey = env.RESEND_API_KEY;
+  const to = env.ADMIN_EMAIL || "ma@goperigee.com";
+  const from = env.FROM_EMAIL || "bookings@goperigee.com";
+  if (!apiKey) return { ok: false, warning: "RESEND_API_KEY is not configured, so no email was sent." };
+
+  const subject = `New Perigee review submitted: ${review.rating} stars`;
+  const text = `A new Perigee review was submitted for approval.\n\nName: ${review.customerName}\nEmail: ${review.email}\nCity: ${review.city}\nRating: ${review.rating}/5\nService: ${review.service}\n\nReview:\n${review.reviewText}\n\nReview it in the owner dashboard.`;
+  const html = `<h2>New Perigee review submitted</h2><p>A new review is waiting for approval.</p><ul><li><strong>Name:</strong> ${escapeHtml(review.customerName)}</li><li><strong>Email:</strong> ${escapeHtml(review.email)}</li><li><strong>City:</strong> ${escapeHtml(review.city)}</li><li><strong>Rating:</strong> ${escapeHtml(review.rating)}/5</li><li><strong>Service:</strong> ${escapeHtml(review.service)}</li></ul><p>${escapeHtml(review.reviewText)}</p>`;
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: formatFromAddress(from, "Perigee Reviews"), to, subject, text, html }),
+    });
+    if (!response.ok) return { ok: false, warning: `Resend returned ${response.status}.` };
+    return { ok: true };
+  } catch (error) {
+    console.error("Review email failed", error);
+    return { ok: false, warning: "Review email failed." };
   }
 }
 
