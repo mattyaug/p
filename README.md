@@ -261,3 +261,17 @@ Email notifications are sent to `ADMIN_EMAIL`, defaulting to `ma@goperigee.com`,
 ### D1 binding note
 
 Your existing Cloudflare dashboard D1 binding named `DB` should remain in place. I did not hardcode an unknown D1 `database_id` because a placeholder ID can break deployment. To make the binding repo-level/permanent later, open `wrangler.toml`, uncomment the `[[d1_databases]]` block, and paste your real Cloudflare D1 database ID.
+
+
+## July 2026 small owner-requested update
+
+This package sets `name = "p"` in `wrangler.toml` and includes a permanent D1 database binding:
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "perigee_appointments"
+database_id = "ad4c73c9-fd3f-4c05-af7e-1775ef0b2030"
+```
+
+The portal now allows customers to enter any preferred appointment time, includes a combined `Mowing and edging` service option, and makes the owner dashboard distinguish between guest requests, portal account users, and actual active members.

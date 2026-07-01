@@ -15,12 +15,10 @@ ADMIN_EMAIL = "ma@goperigee.com"
 FROM_EMAIL = "bookings@goperigee.com"
 STRIPE_MEMBERSHIP_LINK = "https://buy.stripe.com/4gM7sNewm0td1JwaBs8og00"
 
-# Optional permanent D1 binding for Wrangler deploys.
-# Keep your current Cloudflare dashboard binding if it already works.
-# To make this repo-level binding permanent, uncomment this block and paste your real D1 database_id.
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "perigee_appointments"
-# database_id = "PASTE_YOUR_D1_DATABASE_ID_HERE"
-#
+# Permanent D1 binding for the live Perigee appointment/customer database.
+[[d1_databases]]
+binding = "DB"
+database_name = "perigee_appointments"
+database_id = "ad4c73c9-fd3f-4c05-af7e-1775ef0b2030"
+
 # Set ADMIN_TOKEN, RESEND_API_KEY, and STRIPE_WEBHOOK_SECRET as Worker secrets/environment variables in Cloudflare.

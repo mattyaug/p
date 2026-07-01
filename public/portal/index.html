@@ -133,6 +133,7 @@
               <label for="publicService">Service requested *</label>
               <select id="publicService" name="service" required>
                 <option value="">Choose service</option>
+                <option>Mowing and edging</option>
                 <option>Mowing</option>
                 <option>Edging</option>
                 <option>Gutter cleaning</option>
@@ -158,14 +159,15 @@
               <input id="publicRequestedDate" name="requestedDate" type="date" required />
             </div>
             <div class="field">
-              <label>Preferred time *</label>
+              <label for="publicRequestedTime">Preferred time *</label>
               <div class="slot-row" aria-label="Suggested appointment times">
                 <button type="button" class="slot-button" data-public-slot="08:00">8:00 AM</button>
                 <button type="button" class="slot-button" data-public-slot="10:00">10:00 AM</button>
                 <button type="button" class="slot-button" data-public-slot="13:00">1:00 PM</button>
                 <button type="button" class="slot-button" data-public-slot="15:00">3:00 PM</button>
               </div>
-              <input id="publicRequestedTime" name="requestedTime" type="time" class="visually-hidden" required />
+              <input id="publicRequestedTime" name="requestedTime" type="time" required />
+              <span class="help">Choose a suggested time or enter any preferred time.</span>
             </div>
           </div>
 
@@ -213,6 +215,7 @@
                   <label for="portalService">Service requested *</label>
                   <select id="portalService" name="service" required>
                     <option value="">Choose service</option>
+                    <option>Mowing and edging</option>
                     <option>Mowing</option>
                     <option>Edging</option>
                     <option>Gutter cleaning</option>
@@ -232,14 +235,15 @@
               </div>
 
               <div class="field">
-                <label>Preferred time *</label>
+                <label for="portalRequestedTime">Preferred time *</label>
                 <div class="slot-row" aria-label="Suggested appointment times">
                   <button type="button" class="slot-button" data-slot="08:00">8:00 AM</button>
                   <button type="button" class="slot-button" data-slot="10:00">10:00 AM</button>
                   <button type="button" class="slot-button" data-slot="13:00">1:00 PM</button>
                   <button type="button" class="slot-button" data-slot="15:00">3:00 PM</button>
                 </div>
-                <input id="portalRequestedTime" name="requestedTime" type="time" class="visually-hidden" required />
+                <input id="portalRequestedTime" name="requestedTime" type="time" required />
+                <span class="help">Choose a suggested time or enter any preferred time.</span>
               </div>
 
               <div class="field">

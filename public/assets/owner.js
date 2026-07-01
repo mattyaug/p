@@ -45,15 +45,33 @@ function memberStatusClass(value) {
   return "requested";
 }
 
+function customerTypeLabel(item) {
+  if (!item.user_id) return { text: "Guest request — no portal account", className: "requested" };
+  if (item.account_status === "active") return { text: "Active member work order", className: "completed" };
+  if (item.account_status === "canceled" || item.account_status === "inactive") return { text: `Portal account — membership ${item.account_status}`, className: "canceled" };
+  return { text: "Portal account — not active member", className: "confirmed" };
+}
+
+function membershipDetailLabel(status) {
+  if (status === "active") return "Actual member: active paid/approved membership";
+  if (status === "pending") return "Portal account only: membership not active yet";
+  if (status === "canceled") return "Portal account: membership canceled";
+  if (status === "inactive") return "Portal account: membership inactive";
+  return `Portal account: membership ${status || "pending"}`;
+}
+
 function renderRows(appointments) {
   countBadge.textContent = `${appointments.length} appointment${appointments.length === 1 ? "" : "s"}`;
   emptyState.classList.toggle("hidden", appointments.length > 0);
-  tableBody.innerHTML = appointments.map((item) => `
+  tableBody.innerHTML = appointments.map((item) => {
+    const type = customerTypeLabel(item);
+    return `
     <tr>
       <td><span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span></td>
-      <td><strong>${escapeHtml(item.full_name)}</strong><br><span class="muted">${escapeHtml(item.phone)}</span><br><a href="mailto:${escapeHtml(item.email)}">${escapeHtml(item.email)}</a><br><span class="muted">${item.user_id ? "Portal account" : "Public request"}</span></td>
+      <td><span class="status ${escapeHtml(type.className)}">${escapeHtml(type.text)}</span><br><span class="muted">${escapeHtml(item.user_id ? membershipDetailLabel(item.account_status) : "No login account attached")}</span></td>
+      <td><strong>${escapeHtml(item.full_name)}</strong><br><span class="muted">${escapeHtml(item.phone)}</span><br><a href="mailto:${escapeHtml(item.email)}">${escapeHtml(item.email)}</a></td>
       <td>${escapeHtml(item.property_address)}</td>
-      <td><strong>${escapeHtml(item.service)}</strong><br><span class="muted">${escapeHtml(item.account_status ? `Account ${item.account_status}` : item.member_status)}</span></td>
+      <td><strong>${escapeHtml(item.service)}</strong><br><span class="muted">${escapeHtml(item.account_status ? membershipDetailLabel(item.account_status) : item.member_status)}</span></td>
       <td>${escapeHtml(formatDateTime(item.requested_date, item.requested_time))}</td>
       <td>${escapeHtml(item.notes || "—")}</td>
       <td>${escapeHtml(new Date(item.created_at).toLocaleString())}</td>
@@ -64,16 +82,16 @@ function renderRows(appointments) {
           <button class="btn small danger" data-appointment-action="canceled" data-id="${item.id}">Cancel</button>
         </div>
       </td>
-    </tr>
-  `).join("");
+    </tr>`;
+  }).join("");
 }
 
 function renderMembers(members) {
-  memberCountBadge.textContent = `${members.length} member${members.length === 1 ? "" : "s"}`;
+  memberCountBadge.textContent = `${members.length} customer account${members.length === 1 ? "" : "s"}`;
   memberEmptyState.classList.toggle("hidden", members.length > 0);
   membersBody.innerHTML = members.map((item) => `
     <tr>
-      <td><span class="status ${memberStatusClass(item.membership_status)}">${escapeHtml(item.membership_status)}</span></td>
+      <td><span class="status confirmed">Portal account</span><br><span class="status ${memberStatusClass(item.membership_status)}">${escapeHtml(item.membership_status === "active" ? "Active member" : `Membership ${item.membership_status}`)}</span><br><span class="muted">${escapeHtml(membershipDetailLabel(item.membership_status))}</span></td>
       <td><strong>${escapeHtml(item.full_name)}</strong><br><span class="muted">${escapeHtml(item.phone)}</span><br><a href="mailto:${escapeHtml(item.email)}">${escapeHtml(item.email)}</a></td>
       <td>${escapeHtml(item.property_address)}</td>
       <td>${escapeHtml(item.appointment_count || 0)}<br><span class="muted">Last: ${escapeHtml(item.last_appointment_at ? new Date(item.last_appointment_at).toLocaleString() : "—")}</span></td>

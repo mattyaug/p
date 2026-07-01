@@ -28,7 +28,7 @@
       <div class="container">
         <div class="kicker">Owner portal</div>
         <h1>Appointments and members.</h1>
-        <p class="lead">View customer scheduling requests, manage appointment status, and approve or update customer membership status.</p>
+        <p class="lead">View guest requests, portal account requests, and actual paid member work orders. A portal account means the user can log in; an active member means the customer has paid/been approved for membership benefits.</p>
       </div>
     </section>
 
@@ -58,7 +58,7 @@
         <section class="card table-card dashboard-card">
           <div class="section-head compact-head">
             <div>
-              <h2>All appointments</h2>
+              <h2>All appointments and work orders</h2>
               <p id="countBadge" class="muted">0 appointments</p>
             </div>
           </div>
@@ -67,7 +67,8 @@
             <table aria-label="Appointment requests">
               <thead>
                 <tr>
-                  <th>Status</th>
+                  <th>Request status</th>
+                  <th>Customer type</th>
                   <th>Customer</th>
                   <th>Property</th>
                   <th>Service</th>
@@ -85,8 +86,8 @@
         <section class="card table-card dashboard-card">
           <div class="section-head compact-head">
             <div>
-              <h2>Customer accounts</h2>
-              <p id="memberCountBadge" class="muted">0 members</p>
+              <h2>Portal accounts vs active members</h2>
+              <p id="memberCountBadge" class="muted">0 customer accounts</p>
             </div>
           </div>
           <div id="memberEmptyState" class="notice">No customer accounts loaded yet.</div>
@@ -94,7 +95,7 @@
             <table aria-label="Customer accounts">
               <thead>
                 <tr>
-                  <th>Status</th>
+                  <th>Account / membership</th>
                   <th>Customer</th>
                   <th>Property</th>
                   <th>Appointments</th>
