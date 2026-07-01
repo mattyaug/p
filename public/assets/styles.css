@@ -379,3 +379,54 @@ th { color: var(--navy); background: #f7faff; font-size: 12px; text-transform: u
   .hero { padding: 52px 0; }
   section { padding: 52px 0; }
 }
+
+/* Customer account portal additions */
+.portal-auth-grid {
+  display: grid;
+  grid-template-columns: .92fr 1.08fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.portal-layout {
+  display: grid;
+  grid-template-columns: 310px 1fr;
+  gap: 22px;
+  align-items: start;
+}
+
+.portal-main {
+  display: grid;
+  gap: 22px;
+}
+
+.portal-side {
+  position: sticky;
+  top: 98px;
+}
+
+.portal-profile-summary {
+  margin: 14px 0 18px;
+  word-break: break-word;
+}
+
+.compact-price-card h2 { font-size: 42px; }
+.dashboard-card { margin-bottom: 0; }
+.compact-head { margin-bottom: 18px; align-items: start; }
+.customer-table { min-width: 760px; }
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 900px) {
+  .portal-auth-grid, .portal-layout { grid-template-columns: 1fr; }
+  .portal-side { position: static; }
+}

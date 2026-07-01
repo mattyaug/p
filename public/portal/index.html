@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Customer Portal | Perigee Property Management</title>
-  <meta name="description" content="Book Perigee Property Management services in Portland through the customer portal." />
+  <meta name="description" content="Create a Perigee account, manage your membership profile, view appointments, and request service in Portland." />
   <link rel="icon" href="/assets/perigee-logo.jpeg" />
   <link rel="stylesheet" href="/assets/styles.css" />
 </head>
@@ -17,8 +17,8 @@
       </a>
       <nav class="nav-links" aria-label="Main navigation">
         <a href="/">Home</a>
-        <a href="/owner/">Owner portal</a>
-        <a class="btn small" data-membership-link href="https://buy.stripe.com/placeholder">Join membership</a>
+        <a data-membership-link href="https://buy.stripe.com/placeholder">Membership</a>
+        <button id="portalLogoutTop" class="btn small secondary hidden" type="button">Log out</button>
       </nav>
     </div>
   </header>
@@ -27,121 +27,186 @@
     <section class="page-hero">
       <div class="container grid-2">
         <div>
-          <div class="kicker">Customer portal</div>
-          <h1>Request a Perigee appointment.</h1>
-          <p class="lead">Choose your service, preferred date and time, then submit your property details. Perigee will follow up to confirm your appointment window.</p>
+          <div class="kicker">Customer account portal</div>
+          <h1>Log in, schedule, and track your Perigee services.</h1>
+          <p class="lead">Members can request service from their account, view appointment history, update property details, and access the $199/month membership link.</p>
         </div>
-        <aside class="price-card">
+        <aside class="price-card compact-price-card">
           <h2>$199/month</h2>
-          <p>Membership includes mowing, edging, gutter cleaning, fertilizer booking, and free inspections.</p>
+          <p>Includes mowing, edging, gutter cleaning, fertilizer booking, and free inspections.</p>
           <ul class="checklist">
             <li>Free member inspections</li>
             <li>Discounted add-on services</li>
-            <li>Easy appointment requests</li>
+            <li>Account-based appointment tracking</li>
           </ul>
           <a class="btn gold full" data-membership-link href="https://buy.stripe.com/placeholder">Start membership</a>
         </aside>
       </div>
     </section>
 
-    <section>
-      <div class="container form-wrap">
-        <aside class="card form-card">
-          <h2>Available requests</h2>
-          <p class="muted">Members receive core service booking and free inspections. Discounted add-ons are available for members.</p>
-          <ul class="checklist dark">
-            <li>Mowing</li>
-            <li>Edging</li>
-            <li>Gutter cleaning</li>
-            <li>Fertilizer booking</li>
-            <li>Free inspection</li>
-            <li>Pest control</li>
-            <li>Window cleaning</li>
-            <li>Roof cleaning and inspection</li>
-          </ul>
-          <div class="notice">Submitting this form creates a request. The appointment is not final until Perigee confirms it.</div>
+    <section id="authPanel">
+      <div class="container portal-auth-grid">
+        <form id="loginForm" class="card form-card">
+          <h2>Log in</h2>
+          <p class="muted">Use the account you created for your Perigee portal.</p>
+          <div id="loginResult" class="notice hidden" role="status"></div>
+          <div class="field">
+            <label for="loginEmail">Email</label>
+            <input id="loginEmail" name="email" type="email" autocomplete="email" required />
+          </div>
+          <div class="field">
+            <label for="loginPassword">Password</label>
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required />
+          </div>
+          <button id="loginButton" class="btn full" type="submit">Log in</button>
+        </form>
+
+        <form id="registerForm" class="card form-card">
+          <h2>Create account</h2>
+          <p class="muted">Create a portal account so your appointments stay attached to your property profile.</p>
+          <div id="registerResult" class="notice hidden" role="status"></div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="registerFullName">Full name</label>
+              <input id="registerFullName" name="fullName" autocomplete="name" required />
+            </div>
+            <div class="field">
+              <label for="registerPhone">Phone</label>
+              <input id="registerPhone" name="phone" autocomplete="tel" required />
+            </div>
+          </div>
+          <div class="field">
+            <label for="registerEmail">Email</label>
+            <input id="registerEmail" name="email" type="email" autocomplete="email" required />
+          </div>
+          <div class="field">
+            <label for="registerPropertyAddress">Property address</label>
+            <input id="registerPropertyAddress" name="propertyAddress" autocomplete="street-address" required />
+          </div>
+          <div class="field">
+            <label for="registerPassword">Password</label>
+            <input id="registerPassword" name="password" type="password" autocomplete="new-password" minlength="8" required />
+            <span class="help">Use at least 8 characters.</span>
+          </div>
+          <button id="registerButton" class="btn green full" type="submit">Create portal account</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="portalPanel" class="hidden">
+      <div class="container portal-layout">
+        <aside class="card owner-panel portal-side">
+          <h2 id="welcomeName">Welcome</h2>
+          <div id="membershipBadge" class="status requested">pending</div>
+          <p id="profileSummary" class="muted portal-profile-summary">Your profile will appear here.</p>
+          <a class="btn gold full" data-membership-link href="https://buy.stripe.com/placeholder">Open membership payment</a>
+          <button id="refreshPortal" class="btn secondary full" type="button">Refresh portal</button>
+          <button id="portalLogout" class="btn secondary full" type="button">Log out</button>
+          <div class="notice">Membership status is managed by Perigee. After payment, the owner can mark your portal account active.</div>
         </aside>
 
-        <form id="bookingForm" class="card form-card">
-          <h2>Appointment scheduler</h2>
-          <p class="muted">Fields marked required must be completed.</p>
-          <div id="bookingResult" class="notice hidden" role="status"></div>
+        <div class="portal-main">
+          <div id="portalResult" class="notice hidden" role="status"></div>
 
-          <div class="field-grid">
-            <div class="field">
-              <label for="fullName">Full name *</label>
-              <input id="fullName" name="fullName" autocomplete="name" required />
+          <section class="card form-card dashboard-card">
+            <div class="section-head compact-head">
+              <div>
+                <h2>Request service</h2>
+                <p class="muted">This request uses the name, email, phone, and property address from your account.</p>
+              </div>
             </div>
-            <div class="field">
-              <label for="phone">Phone *</label>
-              <input id="phone" name="phone" autocomplete="tel" required />
-            </div>
-          </div>
 
-          <div class="field-grid">
-            <div class="field">
-              <label for="email">Email *</label>
-              <input id="email" name="email" type="email" autocomplete="email" required />
-            </div>
-            <div class="field">
-              <label for="memberStatus">Membership status *</label>
-              <select id="memberStatus" name="memberStatus" required>
-                <option value="">Choose one</option>
-                <option>Current member</option>
-                <option>Interested in membership</option>
-                <option>Not a member yet</option>
-              </select>
-            </div>
-          </div>
+            <form id="portalBookingForm">
+              <div class="field-grid">
+                <div class="field">
+                  <label for="portalService">Service requested *</label>
+                  <select id="portalService" name="service" required>
+                    <option value="">Choose service</option>
+                    <option>Mowing</option>
+                    <option>Edging</option>
+                    <option>Gutter cleaning</option>
+                    <option>Fertilizer booking</option>
+                    <option>Free member inspection</option>
+                    <option>Pest control</option>
+                    <option>Window cleaning</option>
+                    <option>Roof cleaning</option>
+                    <option>Roof inspection</option>
+                    <option>Other exterior service</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="portalRequestedDate">Preferred date *</label>
+                  <input id="portalRequestedDate" name="requestedDate" type="date" required />
+                </div>
+              </div>
 
-          <div class="field">
-            <label for="propertyAddress">Property address *</label>
-            <input id="propertyAddress" name="propertyAddress" autocomplete="street-address" required />
-          </div>
+              <div class="field">
+                <label>Preferred time *</label>
+                <div class="slot-row" aria-label="Suggested appointment times">
+                  <button type="button" class="slot-button" data-slot="08:00">8:00 AM</button>
+                  <button type="button" class="slot-button" data-slot="10:00">10:00 AM</button>
+                  <button type="button" class="slot-button" data-slot="13:00">1:00 PM</button>
+                  <button type="button" class="slot-button" data-slot="15:00">3:00 PM</button>
+                </div>
+                <input id="portalRequestedTime" name="requestedTime" type="time" class="visually-hidden" required />
+              </div>
 
-          <div class="field-grid">
-            <div class="field">
-              <label for="service">Service requested *</label>
-              <select id="service" name="service" required>
-                <option value="">Choose service</option>
-                <option>Mowing</option>
-                <option>Edging</option>
-                <option>Gutter cleaning</option>
-                <option>Fertilizer booking</option>
-                <option>Free member inspection</option>
-                <option>Pest control</option>
-                <option>Window cleaning</option>
-                <option>Roof cleaning</option>
-                <option>Roof inspection</option>
-                <option>Other exterior service</option>
-              </select>
+              <div class="field">
+                <label for="portalNotes">Notes</label>
+                <textarea id="portalNotes" name="notes" placeholder="Gate codes, pet notes, preferred instructions, or extra details."></textarea>
+              </div>
+
+              <button id="portalBookingButton" class="btn full" type="submit">Request appointment</button>
+            </form>
+          </section>
+
+          <section class="card table-card dashboard-card">
+            <div class="section-head compact-head">
+              <div>
+                <h2>Your appointments</h2>
+                <p id="customerCountBadge" class="muted">0 appointments</p>
+              </div>
             </div>
-            <div class="field">
-              <label for="requestedDate">Preferred date *</label>
-              <input id="requestedDate" name="requestedDate" type="date" required />
+            <div id="customerEmptyState" class="notice">No appointment requests yet.</div>
+            <div class="table-wrap">
+              <table class="customer-table" aria-label="Your Perigee appointments">
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>Service</th>
+                    <th>Preferred time</th>
+                    <th>Property</th>
+                    <th>Notes</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody id="customerAppointmentsBody"></tbody>
+              </table>
             </div>
-          </div>
+          </section>
 
-          <div class="field">
-            <label>Preferred time *</label>
-            <div class="slot-row" aria-label="Suggested appointment times">
-              <button type="button" class="slot-button" data-slot="08:00">8:00 AM</button>
-              <button type="button" class="slot-button" data-slot="10:00">10:00 AM</button>
-              <button type="button" class="slot-button" data-slot="13:00">1:00 PM</button>
-              <button type="button" class="slot-button" data-slot="15:00">3:00 PM</button>
-              <button type="button" class="slot-button" data-slot="17:00">5:00 PM</button>
-            </div>
-            <input id="requestedTime" name="requestedTime" type="time" required style="margin-top:10px" />
-            <span class="help">Pick a suggested time or enter a custom preferred time.</span>
-          </div>
-
-          <div class="field">
-            <label for="notes">Property notes</label>
-            <textarea id="notes" name="notes" placeholder="Gate codes, access details, service notes, pets, preferred contact method, etc."></textarea>
-          </div>
-
-          <button id="submitBooking" class="btn full" type="submit">Request appointment</button>
-        </form>
+          <section class="card form-card dashboard-card">
+            <h2>Profile</h2>
+            <p class="muted">Keep this information current so every booking has the right property details.</p>
+            <form id="profileForm" style="margin-top:18px">
+              <div class="field-grid">
+                <div class="field">
+                  <label for="profileFullName">Full name</label>
+                  <input id="profileFullName" name="fullName" autocomplete="name" required />
+                </div>
+                <div class="field">
+                  <label for="profilePhone">Phone</label>
+                  <input id="profilePhone" name="phone" autocomplete="tel" required />
+                </div>
+              </div>
+              <div class="field">
+                <label for="profilePropertyAddress">Property address</label>
+                <input id="profilePropertyAddress" name="propertyAddress" autocomplete="street-address" required />
+              </div>
+              <button id="profileButton" class="btn secondary" type="submit">Save profile</button>
+            </form>
+          </section>
+        </div>
       </div>
     </section>
   </main>
@@ -152,8 +217,10 @@
         <strong>Perigee Property Management</strong>
         <p>Exterior property care for Portland.</p>
       </div>
-      <p><a href="mailto:ma@goperigee.com">ma@goperigee.com</a></p>
+      <div>
+        <p><a href="mailto:ma@goperigee.com">ma@goperigee.com</a></p>
         <p><a href="/privacy/">Privacy</a></p>
+      </div>
     </div>
   </footer>
 

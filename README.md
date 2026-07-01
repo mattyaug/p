@@ -1,102 +1,194 @@
-# Perigee Property Management Website
+# Perigee Property Management Website + Customer Account Portal
 
-This version is configured for the current Cloudflare **Workers & Pages → Create a Worker from Git** flow.
+This is the Cloudflare Worker version of the Perigee website.
 
 It includes:
 
-- Public site for `goperigee.com`
-- Customer portal at `/portal/`
-- In-house scheduler
+- Public website for `goperigee.com`
+- Customer account portal at `/portal/`
+- Customer registration and login
+- Secure HttpOnly session cookies
+- Password hashing using PBKDF2/SHA-256 through the Cloudflare Web Crypto API
+- Logged-in customer appointment scheduling
+- Customer appointment history
+- Customer profile editing
 - Owner dashboard at `/owner/` and `owner.goperigee.com`
-- Cloudflare D1 appointment database support
-- Resend email notifications to `ma@goperigee.com`
-- Stripe membership payment link placeholder for the $199/month membership
+- Owner appointment management
+- Owner customer/member management
+- Cloudflare D1 database storage
+- Resend email notifications
+- Stripe membership payment link placeholder
 
-## Cloudflare deploy settings
+## Project structure
 
-When Cloudflare shows the Worker setup screen, use:
+```txt
+public/
+  index.html
+  portal/index.html
+  owner/index.html
+  privacy/index.html
+  assets/
+    styles.css
+    main.js
+    portal.js
+    owner.js
+    perigee-logo.jpeg
+src/
+  index.js
+schema.sql
+migration_accounts.sql
+wrangler.toml
+package.json
+```
 
-```text
+## Deploy settings in Cloudflare
+
+Use your current Worker deployment flow.
+
+```txt
 Build command: leave blank
 Deploy command: npx wrangler deploy
 ```
 
-The deploy command is okay for this updated Worker version.
+The Worker entry point is:
 
-## Important files
-
-```text
-public/              Static website files
-src/index.js         Worker backend/API and static asset router
-schema.sql           D1 appointment table
-wrangler.toml        Cloudflare deploy configuration
-package.json         Wrangler dependency and scripts
+```txt
+src/index.js
 ```
 
-## After the first deploy
+Static website assets are served from:
 
-The website can deploy before the database is connected, but the scheduler will not save appointments until D1 is connected.
+```txt
+public/
+```
 
-### 1. Create the database
+## Existing database migration
+
+Because you already have the first version running, run this one-time D1 migration before using the new portal:
+
+```txt
+migration_accounts.sql
+```
 
 In Cloudflare:
 
-```text
-Storage & databases → D1 SQL Database → Create
+```txt
+Storage & databases
+→ D1 SQL Database
+→ perigee_appointments
+→ Console / Query / Run SQL
 ```
 
-Name it:
+Copy everything from `migration_accounts.sql`, paste it, and run it.
 
-```text
-perigee_appointments
+Important: if Cloudflare says the `user_id` column already exists, that means the migration already ran. You can ignore that specific error.
+
+## New database install
+
+For a brand-new install, run:
+
+```txt
+schema.sql
 ```
 
-### 2. Add the appointment table
+## Required Cloudflare binding
 
-Open the D1 database, go to the query/console area, paste the contents of `schema.sql`, and run it.
+Your Worker must have the D1 binding:
 
-### 3. Add the D1 binding
-
-Open your Worker:
-
-```text
-Compute → Workers & Pages → perigee-website → Settings → Bindings
-```
-
-Add a D1 database binding:
-
-```text
+```txt
+Binding type: D1 Database
 Variable name: DB
 Database: perigee_appointments
 ```
 
-### 4. Add environment variables / secrets
+## Required variables/secrets
 
-In the same Worker settings, add:
+In the Worker settings, use:
 
-```text
-ADMIN_TOKEN=choose-a-private-owner-code
-RESEND_API_KEY=your-resend-api-key
-STRIPE_MEMBERSHIP_LINK=https://buy.stripe.com/your-real-link
-```
-
-These are already set in `wrangler.toml` and do not need to be added unless you want to override them:
-
-```text
+```env
 BUSINESS_NAME=Perigee Property Management
 SERVICE_AREA=Portland
 ADMIN_EMAIL=ma@goperigee.com
 FROM_EMAIL=bookings@goperigee.com
+STRIPE_MEMBERSHIP_LINK=https://buy.stripe.com/placeholder
 ```
 
-## Custom domains
+Set these as secrets:
 
-Add these routes/custom domains to the Worker:
-
-```text
-goperigee.com/*
-www.goperigee.com/*
-owner.goperigee.com/*
+```env
+ADMIN_TOKEN=your-private-owner-access-code
+RESEND_API_KEY=your-resend-api-key
 ```
 
-The owner subdomain automatically opens the owner dashboard.
+## Customer portal flow
+
+Customers go to:
+
+```txt
+https://goperigee.com/portal/
+```
+
+They can:
+
+1. Create an account.
+2. Log in.
+3. View membership status.
+4. Open the Stripe membership payment link.
+5. Update their profile/property address.
+6. Schedule services from inside their account.
+7. View appointment history.
+
+New customer accounts start as:
+
+```txt
+pending
+```
+
+The owner dashboard can mark an account:
+
+```txt
+active
+pending
+canceled
+```
+
+## Owner dashboard flow
+
+Open:
+
+```txt
+https://goperigee.com/owner/
+```
+
+or:
+
+```txt
+https://owner.goperigee.com
+```
+
+Enter your `ADMIN_TOKEN`.
+
+You can manage:
+
+- Appointment status: requested, confirmed, completed, canceled
+- Customer membership status: pending, active, canceled
+
+## Stripe note
+
+The portal does not automatically mark members active after Stripe payment yet.
+
+Current simplest workflow:
+
+1. Customer creates account.
+2. Customer pays through Stripe Payment Link.
+3. You see the customer in Stripe.
+4. You open `/owner/`.
+5. You mark the matching customer account as `active`.
+
+A future version can add a Stripe webhook so payment automatically activates the member account.
+
+## Email note
+
+`FROM_EMAIL=bookings@goperigee.com` does not have to be a real mailbox if your domain is verified in Resend.
+
+`ADMIN_EMAIL=ma@goperigee.com` can be a Cloudflare Email Routing alias that forwards to your real inbox.

@@ -1,15 +1,16 @@
 {
   "name": "perigee-website",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
-  "description": "Deployable Perigee Property Management website with customer scheduler and owner appointment dashboard for Cloudflare Workers with static assets.",
+  "description": "Deployable Perigee Property Management website with customer account portal, member login, scheduler, D1 database, email notifications, and owner dashboard for Cloudflare Workers.",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "db:create": "wrangler d1 create perigee_appointments",
     "db:migrate:local": "wrangler d1 execute perigee_appointments --local --file=./schema.sql",
-    "db:migrate:remote": "wrangler d1 execute perigee_appointments --remote --file=./schema.sql"
+    "db:migrate:remote": "wrangler d1 execute perigee_appointments --remote --file=./schema.sql",
+    "db:accounts-migration:remote": "wrangler d1 execute perigee_appointments --remote --file=./migration_accounts.sql"
   },
   "devDependencies": {
     "wrangler": "latest"

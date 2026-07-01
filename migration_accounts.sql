@@ -1,3 +1,6 @@
+-- Perigee customer account portal migration
+-- Run this once in your existing Cloudflare D1 database.
+
 CREATE TABLE IF NOT EXISTS members (
   id TEXT PRIMARY KEY,
   full_name TEXT NOT NULL,
@@ -32,32 +35,12 @@ ON member_sessions (token_hash);
 CREATE INDEX IF NOT EXISTS idx_member_sessions_expires_at
 ON member_sessions (expires_at);
 
-CREATE TABLE IF NOT EXISTS appointments (
-  id TEXT PRIMARY KEY,
-  user_id TEXT,
-  full_name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  property_address TEXT NOT NULL,
-  service TEXT NOT NULL,
-  member_status TEXT NOT NULL,
-  requested_date TEXT NOT NULL,
-  requested_time TEXT NOT NULL,
-  notes TEXT DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'requested' CHECK(status IN ('requested', 'confirmed', 'completed', 'canceled')),
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (user_id) REFERENCES members(id) ON DELETE SET NULL
-);
+-- Existing installs need this column added to appointments.
+-- If D1 says the column already exists, do not worry; it means this migration step already ran.
+ALTER TABLE appointments ADD COLUMN user_id TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_appointments_user_id
 ON appointments (user_id);
 
 CREATE INDEX IF NOT EXISTS idx_appointments_email
 ON appointments (email);
-
-CREATE INDEX IF NOT EXISTS idx_appointments_requested_at
-ON appointments (requested_date, requested_time);
-
-CREATE INDEX IF NOT EXISTS idx_appointments_status
-ON appointments (status);
