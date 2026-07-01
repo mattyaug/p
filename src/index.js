@@ -959,25 +959,11 @@ async function handleAdminMe(request, env) {
 }
 
 async function authorize(request, env) {
-  if (!isCloudflareAccessAuthorized(request, env)) {
-    return { ok: false, status: 404, error: "Not found." };
-  }
+  // Owner privacy is handled at the Cloudflare Zero Trust Access layer.
+  // Protect these paths in Cloudflare Access:
+  //   /owner, /owner/*, /logs, /logs/*, /api/admin, /api/admin/*
+  // This avoids a duplicate in-app login/header check and prevents public users from reaching these routes when Access is configured.
   return { ok: true };
-}
-
-function isCloudflareAccessAuthorized(request, env) {
-  const allowed = String(env.OWNER_ACCESS_EMAILS || env.OWNER_ACCESS_EMAIL || OWNER_ACCESS_DEFAULT_EMAIL)
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-
-  const email = String(request.headers.get("Cf-Access-Authenticated-User-Email") || "").trim().toLowerCase();
-  if (!email || !allowed.includes(email)) return false;
-
-  // Cloudflare Access also sends a JWT assertion header. We require its presence so a direct public request
-  // cannot pass this check with only a spoofed email header.
-  const assertion = request.headers.get("Cf-Access-Jwt-Assertion") || request.headers.get("CF-Access-Jwt-Assertion") || "";
-  return assertion.length > 20;
 }
 
 async function createAdminSessionCookie(env) {
