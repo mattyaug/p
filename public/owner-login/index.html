@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Owner Login | Perigee Property Management</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <link rel="icon" href="/assets/perigee-logo.jpeg" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="/">
+        <img class="logo" src="/assets/perigee-logo.jpeg" alt="Perigee Property Management logo" />
+        <span>Perigee Owner Login</span>
+      </a>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="/">Public site</a>
+        <a href="/portal/">Customer portal</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container narrow">
+        <div class="kicker">Private access</div>
+        <h1>Owner login.</h1>
+        <p class="lead">Enter your private owner access code. The dashboard itself is not served until this browser has an active owner session.</p>
+      </div>
+    </section>
+
+    <section class="container narrow" style="padding-top:0">
+      <div class="card form-card">
+        <h2>Access dashboard</h2>
+        <p class="muted">Use the ADMIN_TOKEN you set in Cloudflare. This creates a private 12-hour owner session cookie.</p>
+        <form id="ownerLoginForm" style="margin-top:18px">
+          <div class="field">
+            <label for="ownerToken">Owner access code</label>
+            <input id="ownerToken" type="password" autocomplete="current-password" placeholder="ADMIN_TOKEN" required />
+          </div>
+          <button class="btn full" type="submit">Log in</button>
+        </form>
+        <div id="ownerLoginStatus" class="notice hidden" role="status"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const form = document.querySelector('#ownerLoginForm');
+    const token = document.querySelector('#ownerToken');
+    const statusBox = document.querySelector('#ownerLoginStatus');
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      statusBox.className = 'notice';
+      statusBox.textContent = 'Checking owner access...';
+      statusBox.classList.remove('hidden');
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token.value.trim() }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        statusBox.className = 'notice error';
+        statusBox.textContent = data.error || 'Owner login failed.';
+        return;
+      }
+      statusBox.className = 'notice success';
+      statusBox.textContent = 'Owner access approved. Loading dashboard...';
+      window.location.href = '/owner/';
+    });
+  </script>
+</body>
+</html>

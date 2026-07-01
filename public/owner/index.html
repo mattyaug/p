@@ -16,9 +16,10 @@
         <span>Perigee Owner Dashboard</span>
       </a>
       <nav class="nav-links" aria-label="Owner navigation">
-        <a href="/">Public site</a>
+        <a href="/owner/archive/">Logs & archives</a>
         <a href="/portal/">Customer portal</a>
         <button id="refreshDashboard" class="btn small secondary" type="button">Refresh</button>
+        <button id="logoutAdmin" class="btn small danger" type="button">Log out</button>
       </nav>
     </div>
   </header>
@@ -26,31 +27,46 @@
   <main>
     <section class="page-hero">
       <div class="container">
-        <div class="kicker">Owner portal</div>
-        <h1>Appointments and members.</h1>
-        <p class="lead">View guest requests, portal account requests, and actual paid member work orders. A portal account means the user can log in; an active member means the customer has paid/been approved for membership benefits.</p>
+        <div class="kicker">Private owner portal</div>
+        <h1>Work orders, appointments, and customer accounts.</h1>
+        <p class="lead">This dashboard is hidden behind an owner login cookie. A portal account means the customer can log in; an active member means the customer is approved for membership benefits.</p>
       </div>
     </section>
 
     <div class="container owner-layout">
       <aside class="card owner-panel">
-        <h2>Owner access</h2>
-        <p class="muted">Enter the private admin token you set in Cloudflare.</p>
-        <form id="tokenForm" style="margin-top:16px">
-          <div class="field">
-            <label for="adminToken">Access code</label>
-            <input id="adminToken" type="password" autocomplete="current-password" placeholder="ADMIN_TOKEN" required />
-          </div>
-          <button class="btn full" type="submit">Load dashboard</button>
-        </form>
-        <button id="logoutAdmin" class="btn secondary full" type="button" style="margin-top:10px">Log out this browser</button>
-        <div id="tokenStatus" class="notice hidden" role="status"></div>
-
+        <h2>Dashboard tools</h2>
+        <p id="tokenStatus" class="notice success" role="status">Owner access active.</p>
+        <div class="stat-stack" aria-label="Dashboard summary">
+          <div><strong id="statTotal">0</strong><span>Total visible requests</span></div>
+          <div><strong id="statMembers">0</strong><span>Active member work orders</span></div>
+          <div><strong id="statGuests">0</strong><span>Guest requests</span></div>
+          <div><strong id="statAccounts">0</strong><span>Portal accounts</span></div>
+        </div>
+        <div class="field" style="margin-top:16px">
+          <label for="dashboardSearch">Search dashboard</label>
+          <input id="dashboardSearch" type="search" placeholder="Name, service, email, property..." />
+        </div>
+        <div class="field">
+          <label for="dashboardFilter">Show</label>
+          <select id="dashboardFilter">
+            <option value="all">All visible requests</option>
+            <option value="member">Active member work orders</option>
+            <option value="account">Portal account requests</option>
+            <option value="guest">Guest requests</option>
+            <option value="requested">Requested status</option>
+            <option value="confirmed">Confirmed status</option>
+            <option value="completed">Completed status</option>
+            <option value="canceled">Canceled status</option>
+          </select>
+        </div>
+        <a class="btn secondary full" href="/owner/archive/">Open logs & archives</a>
+        <p class="muted" style="margin-top:12px">“Delete from dashboard” removes a work order from this active view but keeps it in Logs & Archives.</p>
         <div class="status-row">
           <span class="status requested">requested/pending</span>
           <span class="status confirmed">confirmed</span>
           <span class="status completed">completed/active</span>
-          <span class="status canceled">canceled</span>
+          <span class="status canceled">canceled/archived</span>
         </div>
       </aside>
 
@@ -58,7 +74,7 @@
         <section class="card table-card dashboard-card">
           <div class="section-head compact-head">
             <div>
-              <h2>All appointments and work orders</h2>
+              <h2>Visible appointments and work orders</h2>
               <p id="countBadge" class="muted">0 appointments</p>
             </div>
           </div>

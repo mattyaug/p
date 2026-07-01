@@ -45,6 +45,9 @@ CREATE TABLE IF NOT EXISTS appointments (
   requested_time TEXT NOT NULL,
   notes TEXT DEFAULT '',
   status TEXT NOT NULL DEFAULT 'requested' CHECK(status IN ('requested', 'confirmed', 'completed', 'canceled')),
+  hidden_from_owner INTEGER NOT NULL DEFAULT 0,
+  archived_at TEXT,
+  archive_reason TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY (user_id) REFERENCES members(id) ON DELETE SET NULL
@@ -61,6 +64,25 @@ ON appointments (requested_date, requested_time);
 
 CREATE INDEX IF NOT EXISTS idx_appointments_status
 ON appointments (status);
+
+CREATE INDEX IF NOT EXISTS idx_appointments_hidden_from_owner
+ON appointments (hidden_from_owner);
+
+CREATE TABLE IF NOT EXISTS owner_logs (
+  id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT DEFAULT '',
+  title TEXT NOT NULL,
+  details TEXT DEFAULT '{}',
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_owner_logs_created_at
+ON owner_logs (created_at);
+
+CREATE INDEX IF NOT EXISTS idx_owner_logs_entity
+ON owner_logs (entity_type, entity_id);
 
 CREATE TABLE IF NOT EXISTS membership_payments (
   id TEXT PRIMARY KEY,

@@ -1,6 +1,3 @@
-const tokenForm = document.querySelector("#tokenForm");
-const tokenInput = document.querySelector("#adminToken");
-const tokenStatus = document.querySelector("#tokenStatus");
 const tableBody = document.querySelector("#appointmentsBody");
 const membersBody = document.querySelector("#membersBody");
 const refreshButton = document.querySelector("#refreshDashboard");
@@ -9,20 +6,16 @@ const emptyState = document.querySelector("#emptyState");
 const memberEmptyState = document.querySelector("#memberEmptyState");
 const countBadge = document.querySelector("#countBadge");
 const memberCountBadge = document.querySelector("#memberCountBadge");
+const tokenStatus = document.querySelector("#tokenStatus");
+const searchInput = document.querySelector("#dashboardSearch");
+const filterInput = document.querySelector("#dashboardFilter");
+const statTotal = document.querySelector("#statTotal");
+const statMembers = document.querySelector("#statMembers");
+const statGuests = document.querySelector("#statGuests");
+const statAccounts = document.querySelector("#statAccounts");
 
-const TOKEN_KEY = "perigee_admin_token";
-
-function getToken() {
-  return localStorage.getItem(TOKEN_KEY) || "";
-}
-
-function setToken(token) {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
-}
+let allAppointments = [];
+let allMembers = [];
 
 function formatDateTime(dateValue, timeValue) {
   if (!dateValue) return "—";
@@ -46,10 +39,10 @@ function memberStatusClass(value) {
 }
 
 function customerTypeLabel(item) {
-  if (!item.user_id) return { text: "Guest request — no portal account", className: "requested" };
-  if (item.account_status === "active") return { text: "Active member work order", className: "completed" };
-  if (item.account_status === "canceled" || item.account_status === "inactive") return { text: `Portal account — membership ${item.account_status}`, className: "canceled" };
-  return { text: "Portal account — not active member", className: "confirmed" };
+  if (!item.user_id) return { text: "Guest request — no portal account", className: "requested", group: "guest" };
+  if (item.account_status === "active") return { text: "Active member work order", className: "completed", group: "member" };
+  if (item.account_status === "canceled" || item.account_status === "inactive") return { text: `Portal account — membership ${item.account_status}`, className: "canceled", group: "account" };
+  return { text: "Portal account — not active member", className: "confirmed", group: "account" };
 }
 
 function membershipDetailLabel(status) {
@@ -60,8 +53,33 @@ function membershipDetailLabel(status) {
   return `Portal account: membership ${status || "pending"}`;
 }
 
-function renderRows(appointments) {
-  countBadge.textContent = `${appointments.length} appointment${appointments.length === 1 ? "" : "s"}`;
+function matchesAppointmentFilter(item) {
+  const selected = filterInput.value;
+  const type = customerTypeLabel(item);
+  if (selected !== "all") {
+    if (["member", "account", "guest"].includes(selected) && type.group !== selected) return false;
+    if (["requested", "confirmed", "completed", "canceled"].includes(selected) && item.status !== selected) return false;
+  }
+  const query = searchInput.value.trim().toLowerCase();
+  if (!query) return true;
+  return [
+    item.full_name, item.email, item.phone, item.property_address, item.service,
+    item.member_status, item.requested_date, item.requested_time, item.notes, item.status,
+    item.account_status, type.text,
+  ].some((value) => String(value || "").toLowerCase().includes(query));
+}
+
+function renderStats() {
+  const visible = allAppointments;
+  statTotal.textContent = visible.length;
+  statMembers.textContent = visible.filter((item) => customerTypeLabel(item).group === "member").length;
+  statGuests.textContent = visible.filter((item) => customerTypeLabel(item).group === "guest").length;
+  statAccounts.textContent = allMembers.length;
+}
+
+function renderRows() {
+  const appointments = allAppointments.filter(matchesAppointmentFilter);
+  countBadge.textContent = `${appointments.length} visible appointment${appointments.length === 1 ? "" : "s"}`;
   emptyState.classList.toggle("hidden", appointments.length > 0);
   tableBody.innerHTML = appointments.map((item) => {
     const type = customerTypeLabel(item);
@@ -80,16 +98,17 @@ function renderRows(appointments) {
           <button class="btn small secondary" data-appointment-action="confirmed" data-id="${item.id}">Confirm</button>
           <button class="btn small secondary" data-appointment-action="completed" data-id="${item.id}">Complete</button>
           <button class="btn small danger" data-appointment-action="canceled" data-id="${item.id}">Cancel</button>
+          <button class="btn small danger outline-danger" data-appointment-delete="1" data-id="${item.id}">Delete from dashboard</button>
         </div>
       </td>
     </tr>`;
   }).join("");
 }
 
-function renderMembers(members) {
-  memberCountBadge.textContent = `${members.length} customer account${members.length === 1 ? "" : "s"}`;
-  memberEmptyState.classList.toggle("hidden", members.length > 0);
-  membersBody.innerHTML = members.map((item) => `
+function renderMembers() {
+  memberCountBadge.textContent = `${allMembers.length} customer account${allMembers.length === 1 ? "" : "s"}`;
+  memberEmptyState.classList.toggle("hidden", allMembers.length > 0);
+  membersBody.innerHTML = allMembers.map((item) => `
     <tr>
       <td><span class="status confirmed">Portal account</span><br><span class="status ${memberStatusClass(item.membership_status)}">${escapeHtml(item.membership_status === "active" ? "Active member" : `Membership ${item.membership_status}`)}</span><br><span class="muted">${escapeHtml(membershipDetailLabel(item.membership_status))}</span></td>
       <td><strong>${escapeHtml(item.full_name)}</strong><br><span class="muted">${escapeHtml(item.phone)}</span><br><a href="mailto:${escapeHtml(item.email)}">${escapeHtml(item.email)}</a></td>
@@ -108,13 +127,15 @@ function renderMembers(members) {
 }
 
 async function fetchAdmin(path, options = {}) {
-  const token = getToken();
-  if (!token) throw new Error("Enter your owner access code to load the dashboard.");
   const response = await fetch(path, {
-    headers: { "Content-Type": "application/json", "X-Admin-Token": token, ...(options.headers || {}) },
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
   });
   const data = await response.json().catch(() => ({}));
+  if (response.status === 401) {
+    window.location.href = "/owner-login/";
+    throw new Error("Owner login required.");
+  }
   if (!response.ok) throw new Error(data.error || "Request failed.");
   return data;
 }
@@ -129,14 +150,21 @@ async function loadDashboard() {
     tokenStatus.className = "notice success";
     tokenStatus.textContent = "Owner access active.";
     tokenStatus.classList.remove("hidden");
-    renderRows(appointmentsData.appointments || []);
-    renderMembers(membersData.members || []);
+    allAppointments = appointmentsData.appointments || [];
+    allMembers = membersData.members || [];
+    renderStats();
+    renderRows();
+    renderMembers();
   } catch (error) {
+    if (String(error.message).includes("Owner login required")) return;
     tokenStatus.className = "notice error";
     tokenStatus.textContent = error.message || "Unable to load dashboard.";
     tokenStatus.classList.remove("hidden");
-    renderRows([]);
-    renderMembers([]);
+    allAppointments = [];
+    allMembers = [];
+    renderStats();
+    renderRows();
+    renderMembers();
   } finally {
     refreshButton.disabled = false;
   }
@@ -156,6 +184,22 @@ async function updateAppointmentStatus(id, status) {
   }
 }
 
+async function archiveAppointment(id) {
+  const confirmed = window.confirm("Delete this work order from the owner dashboard? It will remain in Logs & Archives.");
+  if (!confirmed) return;
+  try {
+    await fetchAdmin(`/api/admin/appointments/${id}`, {
+      method: "DELETE",
+      body: JSON.stringify({ reason: "Deleted from owner dashboard" }),
+    });
+    await loadDashboard();
+  } catch (error) {
+    tokenStatus.className = "notice error";
+    tokenStatus.textContent = error.message || "Could not delete from dashboard.";
+    tokenStatus.classList.remove("hidden");
+  }
+}
+
 async function updateMemberStatus(id, membershipStatus) {
   try {
     await fetchAdmin(`/api/admin/members/${id}`, {
@@ -170,27 +214,24 @@ async function updateMemberStatus(id, membershipStatus) {
   }
 }
 
-tokenForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  setToken(tokenInput.value.trim());
-  tokenInput.value = "";
-  await loadDashboard();
-});
+async function logoutAdmin() {
+  await fetch("/api/admin/logout", { method: "POST" }).catch(() => null);
+  window.location.href = "/owner-login/";
+}
 
 refreshButton.addEventListener("click", loadDashboard);
-logoutButton.addEventListener("click", () => {
-  clearToken();
-  renderRows([]);
-  renderMembers([]);
-  tokenStatus.className = "notice";
-  tokenStatus.textContent = "Logged out of owner access on this browser.";
-  tokenStatus.classList.remove("hidden");
-});
+logoutButton.addEventListener("click", logoutAdmin);
+searchInput.addEventListener("input", renderRows);
+filterInput.addEventListener("change", renderRows);
 
 tableBody.addEventListener("click", async (event) => {
-  const button = event.target.closest("button[data-appointment-action]");
-  if (!button) return;
-  await updateAppointmentStatus(button.dataset.id, button.dataset.appointmentAction);
+  const actionButton = event.target.closest("button[data-appointment-action]");
+  if (actionButton) {
+    await updateAppointmentStatus(actionButton.dataset.id, actionButton.dataset.appointmentAction);
+    return;
+  }
+  const deleteButton = event.target.closest("button[data-appointment-delete]");
+  if (deleteButton) await archiveAppointment(deleteButton.dataset.id);
 });
 
 membersBody.addEventListener("click", async (event) => {

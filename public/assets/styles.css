@@ -446,3 +446,36 @@ th { color: var(--navy); background: #f7faff; font-size: 12px; text-transform: u
 }
 .check-field input { width: auto; margin-top: 3px; }
 .membership-terms-mini { font-size: 13px; }
+
+.stat-stack {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+.stat-stack > div {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: var(--soft);
+}
+.stat-stack strong {
+  display: block;
+  color: var(--navy);
+  font-size: 28px;
+  line-height: 1;
+}
+.stat-stack span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+.outline-danger {
+  background: #fff;
+  color: var(--danger);
+  border: 1px solid rgba(169, 35, 35, .25);
+  box-shadow: none;
+}
+.narrow {
+  max-width: 760px;
+}
