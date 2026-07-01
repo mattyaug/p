@@ -1,61 +1,29 @@
-# Perigee Portland Reviews Update
+# Perigee Review Reseed Fix
 
-This update adds a public Reviews section, Portland service-area emphasis, and owner dashboard review approvals.
+This update stops the starter review samples from automatically reappearing after they are deleted or archived.
 
-## Included changes
+## What changed
 
-- Adds Portland imagery to the homepage using the uploaded Portland photos.
-- Updates homepage language to emphasize "serving Portland" and Portland-focused exterior property care.
-- Adds a public Reviews section to the homepage.
-- Adds a public review submission form.
-- Adds owner dashboard review approval tools.
-- Adds owner logs for new review submissions, review approvals, rejections, and deletions.
-- Adds 12 five-star starter sample review entries and 1 four-star starter sample review entry as **pending** reviews. They are not shown publicly unless approved in the owner dashboard.
+- Removed automatic review seeding from the Worker startup/database check.
+- Reviews now stay deleted/archived after owner dashboard actions.
+- Existing public site, portal, owner pages, logs, DB binding, Stripe link, and Portland homepage content remain in place.
 
 ## Install
 
 1. Unzip this package.
-2. Replace the files in the GitHub repo with these files.
+2. Upload/replace the repo files in GitHub.
 3. Commit changes.
 4. Let Cloudflare redeploy.
 
 ## Database
 
-The Worker can create the reviews table automatically. For a clean setup, run this once in D1:
+No new SQL migration is required.
 
-```text
-migration_reviews.sql
+If old starter reviews are still present in D1 and you want to remove them all permanently, run:
+
+```sql
+DELETE FROM reviews
+WHERE id LIKE 'starter-review-%';
 ```
 
-Path:
-
-```text
-Cloudflare → Storage & databases → D1 SQL Database → perigee_appointments → Console / Query
-```
-
-Copy the contents of `migration_reviews.sql`, paste into the D1 console, and run it.
-
-## Review approval
-
-Public users can submit reviews on the homepage. Reviews are saved as `pending` and will not appear publicly until approved.
-
-Review moderation is here:
-
-```text
-https://goperigee.com/owner/
-```
-
-Cloudflare Zero Trust should continue protecting:
-
-```text
-goperigee.com/owner
-goperigee.com/owner/*
-goperigee.com/logs
-goperigee.com/logs/*
-goperigee.com/api/admin
-goperigee.com/api/admin/*
-```
-
-## Starter samples
-
-The included starter reviews are intentionally marked `pending`. Approve only reviews you want to display publicly.
+Then refresh the owner dashboard. They should not reappear after this update is deployed.
