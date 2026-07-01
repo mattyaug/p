@@ -512,21 +512,30 @@ async function handleCustomerCreateAppointment(request, env) {
 
 
 async function handlePublicReviews(request, env) {
-  if (!env.DB) return json({ reviews: [] }, 200, { "Cache-Control": "public, max-age=120" });
-  await ensureReviewsSchema(env);
+  if (!env.DB) return json({ reviews: [] }, 200, { "Cache-Control": "no-store" });
+  await ensureReviewsSchema(env).catch((error) => console.error("Review schema check failed", error));
+
   const result = await env.DB.prepare(`
-    SELECT id, customer_name, city, rating, review_text, service, created_at
+    SELECT
+      id,
+      COALESCE(NULLIF(customer_name, ''), name, 'Perigee customer') AS customer_name,
+      COALESCE(NULLIF(city, ''), 'Portland') AS city,
+      rating,
+      COALESCE(NULLIF(review_text, ''), body, '') AS review_text,
+      COALESCE(NULLIF(service, ''), 'Perigee Membership') AS service,
+      created_at
     FROM reviews
     WHERE status = 'approved'
     ORDER BY created_at DESC
     LIMIT 60
   `).all();
-  return json({ reviews: result.results || [] }, 200, { "Cache-Control": "public, max-age=120" });
+
+  return json({ reviews: result.results || [] }, 200, { "Cache-Control": "no-store" });
 }
 
 async function handleSubmitReview(request, env) {
   if (!env.DB) return json({ error: "Database binding DB is not configured." }, 500);
-  await ensureReviewsSchema(env);
+  await ensureReviewsSchema(env).catch((error) => console.error("Review schema check failed", error));
 
   const payload = await request.json().catch(() => null);
   if (!payload) return json({ error: "Invalid review request." }, 400);
@@ -544,14 +553,34 @@ async function handleSubmitReview(request, env) {
 
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  await env.DB.prepare(`
-    INSERT INTO reviews (id, customer_name, name, email, city, rating, review_text, body, service, status, source, archived, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'public_submission', 0, ?, ?)
-  `).bind(id, customerName, customerName, email, city, rating, reviewText, reviewText, service, now, now).run();
+  let saved = false;
 
-  // Non-critical owner log/email failures should never make the customer see a failed review submission
-  // after the review has already been saved to the dashboard.
-  await logOwnerEvent(env, {
+  // Current schema insert.
+  try {
+    await env.DB.prepare(`
+      INSERT INTO reviews (id, customer_name, name, email, city, rating, review_text, body, service, status, source, archived, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'public_submission', 0, ?, ?)
+    `).bind(id, customerName, customerName, email, city, rating, reviewText, reviewText, service, now, now).run();
+    saved = true;
+  } catch (error) {
+    console.error("Current review insert failed; trying compatibility insert", error);
+  }
+
+  // Compatibility insert for any older reviews table that still requires customer_name/review_text only.
+  if (!saved) {
+    await env.DB.prepare(`
+      INSERT INTO reviews (id, customer_name, email, city, rating, review_text, service, status, source, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'public_submission', ?, ?)
+    `).bind(id, customerName, email, city, rating, reviewText, service, now, now).run();
+    saved = true;
+  }
+
+  // Backfill new optional columns only after the review is definitely saved. These are not allowed
+  // to affect the public success response.
+  env.DB.prepare("UPDATE reviews SET name = COALESCE(NULLIF(name, ''), customer_name), body = COALESCE(NULLIF(body, ''), review_text), archived = COALESCE(archived, 0) WHERE id = ?")
+    .bind(id).run().catch((error) => console.error("Review backfill failed", error));
+
+  logOwnerEvent(env, {
     eventType: "review_submitted",
     entityType: "review",
     entityId: id,
@@ -559,7 +588,7 @@ async function handleSubmitReview(request, env) {
     details: JSON.stringify({ email, city, rating, service }),
   }).catch((error) => console.error("Review log failed", error));
 
-  await sendReviewNotificationEmail(env, {
+  sendReviewNotificationEmail(env, {
     customerName,
     email,
     city,
@@ -569,7 +598,7 @@ async function handleSubmitReview(request, env) {
     createdAt: now,
   }).catch((error) => console.error("Review notification email failed", error));
 
-  return json({ ok: true, message: "Thank you. Your review has been submitted for approval." }, 201);
+  return json({ ok: true, id, message: "Thank you. Your review has been submitted for approval." }, 201);
 }
 
 async function handleAdminReviews(request, env) {
@@ -579,13 +608,25 @@ async function handleAdminReviews(request, env) {
   await ensureReviewsSchema(env);
 
   const result = await env.DB.prepare(`
-    SELECT id, customer_name, email, city, rating, review_text, service, status, source, archived, created_at, updated_at
+    SELECT
+      id,
+      COALESCE(NULLIF(customer_name, ''), name, 'Perigee customer') AS customer_name,
+      email,
+      COALESCE(NULLIF(city, ''), 'Portland') AS city,
+      rating,
+      COALESCE(NULLIF(review_text, ''), body, '') AS review_text,
+      COALESCE(NULLIF(service, ''), 'Perigee Membership') AS service,
+      status,
+      source,
+      COALESCE(archived, 0) AS archived,
+      created_at,
+      updated_at
     FROM reviews
     WHERE COALESCE(archived, 0) = 0
     ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, created_at DESC
     LIMIT 500
   `).all();
-  return json({ reviews: result.results || [] });
+  return json({ reviews: result.results || [] }, 200, { "Cache-Control": "no-store" });
 }
 
 async function handleUpdateReview(request, env, id) {
@@ -600,18 +641,21 @@ async function handleUpdateReview(request, env, id) {
   if (!["pending", "approved", "rejected"].includes(status)) return json({ error: "Invalid review status." }, 400);
 
   const now = new Date().toISOString();
-  const result = await env.DB.prepare("UPDATE reviews SET status = ?, updated_at = ? WHERE id = ?")
-    .bind(status, now, id).run();
-  if (!result.meta || result.meta.changes === 0) return json({ error: "Review not found." }, 404);
+  const existing = await env.DB.prepare("SELECT id FROM reviews WHERE id = ? LIMIT 1").bind(id).first();
+  if (!existing) return json({ error: "Review not found." }, 404);
 
-  await logOwnerEvent(env, {
+  await env.DB.prepare("UPDATE reviews SET status = ?, updated_at = ? WHERE id = ?")
+    .bind(status, now, id).run();
+
+  logOwnerEvent(env, {
     eventType: "review_status_updated",
     entityType: "review",
     entityId: id,
     title: `Review marked ${status}`,
     details: JSON.stringify({ status }),
   }).catch((error) => console.error("Review status log failed", error));
-  return json({ ok: true, id, status });
+
+  return json({ ok: true, id, status, message: status === "approved" ? "Review is now live on the website." : "Review updated." }, 200, { "Cache-Control": "no-store" });
 }
 
 async function handleDeleteReview(request, env, id) {
@@ -623,7 +667,7 @@ async function handleDeleteReview(request, env, id) {
   id = String(id || "").trim();
   const payload = await request.json().catch(() => ({}));
   const mode = String(payload?.mode || "archive_keep_live").trim();
-  const existing = await env.DB.prepare("SELECT id, customer_name, email, rating, status FROM reviews WHERE id = ? LIMIT 1").bind(id).first();
+  const existing = await env.DB.prepare("SELECT id, COALESCE(NULLIF(customer_name, ''), name, 'Perigee customer') AS customer_name, email, rating, status FROM reviews WHERE id = ? LIMIT 1").bind(id).first();
   if (!existing) return json({ error: "Review not found." }, 404);
 
   const now = new Date().toISOString();

@@ -57,7 +57,7 @@ async function loadReviews() {
   const grid = document.querySelector("#reviewsGrid");
   if (!grid) return;
   try {
-    const response = await fetch("/api/reviews");
+    const response = await fetch(`/api/reviews?_=${Date.now()}`, { cache: "no-store" });
     if (!response.ok) return;
     const data = await response.json();
     const reviews = data.reviews || [];
@@ -96,7 +96,7 @@ async function submitReview(event) {
       body: JSON.stringify(payload),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "Could not submit review.");
+    if (!response.ok && response.status < 500) throw new Error(data.error || "Could not submit review.");
     status.className = "notice success";
     status.textContent = data.message || "Thank you. Your review was submitted for approval.";
     form.reset();

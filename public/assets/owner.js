@@ -167,7 +167,9 @@ function renderMembers() {
 }
 
 async function fetchAdmin(path, options = {}) {
-  const response = await fetch(path, {
+  const separator = path.includes("?") ? "&" : "?";
+  const response = await fetch(`${path}${separator}_=${Date.now()}`, {
+    cache: "no-store",
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
   });
@@ -260,12 +262,17 @@ async function updateMemberStatus(id, membershipStatus) {
 
 async function updateReviewStatus(id, status) {
   try {
-    await fetchAdmin(`/api/admin/reviews/${id}`, {
+    const result = await fetchAdmin(`/api/admin/reviews/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
     });
-    await loadDashboard();
+    tokenStatus.className = "notice success";
+    tokenStatus.textContent = result.message || (status === "approved" ? "Review is now live on the website." : "Review updated.");
+    tokenStatus.classList.remove("hidden");
+    await loadDashboard().catch(() => null);
   } catch (error) {
+    // If the database update succeeded but a non-critical logging/cache step failed, the next refresh will show the true state.
+    await loadDashboard().catch(() => null);
     tokenStatus.className = "notice error";
     tokenStatus.textContent = error.message || "Could not update review.";
     tokenStatus.classList.remove("hidden");
