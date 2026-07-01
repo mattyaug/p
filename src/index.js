@@ -29,6 +29,11 @@ export default {
         return handleConfig(env);
       }
 
+      // Stripe webhook for automatic membership activation after payment.
+      if (url.pathname === "/api/stripe/webhook" && request.method === "POST") {
+        return handleStripeWebhook(request, env);
+      }
+
       // Public appointment endpoint remains available for older forms/links.
       if (url.pathname === "/api/appointments" && request.method === "POST") {
         return handleCreateAppointment(request, env);
@@ -95,11 +100,167 @@ export default {
 };
 
 function handleConfig(env) {
+  const defaultStripeMembershipLink = "https://buy.stripe.com/4gM7sNewm0td1JwaBs8og00";
+  const configuredStripeLink = String(env.STRIPE_MEMBERSHIP_LINK || "").trim();
   return json({
     businessName: env.BUSINESS_NAME || "Perigee Property Management",
     serviceArea: env.SERVICE_AREA || "Portland",
-    stripeMembershipLink: env.STRIPE_MEMBERSHIP_LINK || "https://buy.stripe.com/placeholder",
+    stripeMembershipLink: configuredStripeLink && configuredStripeLink !== "https://buy.stripe.com/placeholder" ? configuredStripeLink : defaultStripeMembershipLink,
   }, 200, { "Cache-Control": "public, max-age=60" });
+}
+
+async function handleStripeWebhook(request, env) {
+  if (!env.DB) return json({ error: "Database binding DB is not configured." }, 500);
+  if (!env.STRIPE_WEBHOOK_SECRET) return json({ error: "STRIPE_WEBHOOK_SECRET is not configured." }, 500);
+
+  const rawBody = await request.text();
+  const signature = request.headers.get("Stripe-Signature") || "";
+  const verified = await verifyStripeSignature(rawBody, signature, env.STRIPE_WEBHOOK_SECRET);
+  if (!verified) return json({ error: "Invalid Stripe signature." }, 400);
+
+  let event;
+  try {
+    event = JSON.parse(rawBody);
+  } catch (_) {
+    return json({ error: "Invalid Stripe payload." }, 400);
+  }
+
+  try {
+    const result = await activateMembershipFromStripeEvent(env, event);
+    return json({ received: true, ...result });
+  } catch (error) {
+    console.error("Stripe webhook handling failed", error);
+    return json({ error: "Stripe webhook handler failed." }, 500);
+  }
+}
+
+async function activateMembershipFromStripeEvent(env, event) {
+  const type = String(event?.type || "");
+  const object = event?.data?.object || {};
+
+  if (!["checkout.session.completed", "invoice.payment_succeeded"].includes(type)) {
+    return { ignored: true, reason: "Unhandled event type.", eventType: type };
+  }
+
+  const email = normalizeStripeEmail(object);
+  if (!email) {
+    console.warn("Stripe event had no customer email", type, event?.id || "");
+    return { ignored: true, reason: "No customer email found.", eventType: type };
+  }
+
+  const paymentStatus = String(object.payment_status || object.status || "").toLowerCase();
+  const shouldActivate = type === "invoice.payment_succeeded" || paymentStatus === "paid" || paymentStatus === "complete" || paymentStatus === "completed";
+  if (!shouldActivate) {
+    return { ignored: true, reason: `Payment status not active: ${paymentStatus || "unknown"}.`, eventType: type, email };
+  }
+
+  await recordMembershipPayment(env, {
+    eventId: String(event.id || crypto.randomUUID()),
+    eventType: type,
+    email,
+    stripeCustomerId: typeof object.customer === "string" ? object.customer : "",
+    stripeSubscriptionId: typeof object.subscription === "string" ? object.subscription : "",
+    paymentLinkId: typeof object.payment_link === "string" ? object.payment_link : "",
+    status: "active",
+  });
+
+  const now = new Date().toISOString();
+  const result = await env.DB.prepare(`
+    UPDATE members
+    SET membership_status = 'active', updated_at = ?
+    WHERE lower(email) = lower(?) AND membership_status != 'active'
+  `).bind(now, email).run();
+
+  return {
+    ok: true,
+    eventType: type,
+    email,
+    activatedExistingAccount: !!(result.meta && result.meta.changes > 0),
+  };
+}
+
+function normalizeStripeEmail(object) {
+  return trimLimit(
+    object?.customer_details?.email ||
+    object?.customer_email ||
+    object?.customer?.email ||
+    object?.metadata?.email ||
+    "",
+    160
+  ).toLowerCase();
+}
+
+async function recordMembershipPayment(env, payment) {
+  const now = new Date().toISOString();
+  try {
+    await env.DB.prepare(`
+      INSERT OR IGNORE INTO membership_payments (
+        id, event_id, event_type, email, stripe_customer_id, stripe_subscription_id,
+        payment_link_id, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      crypto.randomUUID(),
+      payment.eventId,
+      payment.eventType,
+      payment.email,
+      payment.stripeCustomerId || "",
+      payment.stripeSubscriptionId || "",
+      payment.paymentLinkId || "",
+      payment.status || "active",
+      now
+    ).run();
+  } catch (error) {
+    console.error("Could not record Stripe membership payment. Run migration_stripe_auto_activation.sql if this persists.", error);
+  }
+}
+
+async function hasCompletedMembershipPayment(env, email) {
+  try {
+    const row = await env.DB.prepare(`
+      SELECT id
+      FROM membership_payments
+      WHERE lower(email) = lower(?) AND status = 'active'
+      LIMIT 1
+    `).bind(email).first();
+    return !!row;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function verifyStripeSignature(payload, signatureHeader, secret) {
+  const parts = String(signatureHeader || "").split(",").map((part) => part.trim());
+  const timestampPart = parts.find((part) => part.startsWith("t="));
+  const signatures = parts.filter((part) => part.startsWith("v1=")).map((part) => part.slice(3));
+  if (!timestampPart || !signatures.length) return false;
+
+  const timestamp = Number(timestampPart.slice(2));
+  if (!Number.isFinite(timestamp)) return false;
+
+  const age = Math.abs(Math.floor(Date.now() / 1000) - timestamp);
+  if (age > 300) return false;
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signedPayload = `${timestamp}.${payload}`;
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(signedPayload));
+  const expected = Array.from(new Uint8Array(signature)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return signatures.some((candidate) => timingSafeStringEqual(candidate, expected));
+}
+
+function timingSafeStringEqual(a, b) {
+  a = String(a || "");
+  b = String(b || "");
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 async function handleCreateAppointment(request, env) {
@@ -146,13 +307,14 @@ async function handleRegister(request, env) {
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
   const passwordHash = await hashPassword(password);
+  const initialMembershipStatus = await hasCompletedMembershipPayment(env, email) ? "active" : "pending";
 
   await env.DB.prepare(`
     INSERT INTO members (
       id, full_name, email, password_hash, phone, property_address,
       membership_status, role, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, 'pending', 'customer', ?, ?)
-  `).bind(id, fullName, email, passwordHash, phone, propertyAddress, now, now).run();
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'customer', ?, ?)
+  `).bind(id, fullName, email, passwordHash, phone, propertyAddress, initialMembershipStatus, now, now).run();
 
   const member = await findMemberById(env, id);
   const { cookie, session } = await createSession(env, id);
@@ -265,7 +427,7 @@ async function handleCustomerCreateAppointment(request, env) {
   if (!isTime(data.requestedTime)) return json({ error: "Please choose a valid requested time." }, 400);
 
   const appointment = await insertAppointment(env, data);
-  const emailResult = await sendAppointmentEmail(env, appointment);
+  const emailResult = await sendMemberWorkOrderEmail(env, appointment, auth.member);
 
   return json({ ok: true, appointment, emailSent: emailResult.ok, emailWarning: emailResult.ok ? null : emailResult.warning }, 201);
 }
@@ -613,23 +775,36 @@ function authorize(request, env) {
   return { ok: true };
 }
 
-async function sendAppointmentEmail(env, appointment) {
+async function sendMemberWorkOrderEmail(env, appointment, member) {
+  const enriched = {
+    ...appointment,
+    memberStatus: appointment.memberStatus || (member?.membership_status === "active" ? "Active member" : `Account ${member?.membership_status || "pending"}`),
+    portalAccountEmail: member?.email || appointment.email,
+  };
+  return sendAppointmentEmail(env, enriched, {
+    subject: `New Perigee member work order: ${appointment.service}`,
+    intro: "A portal member submitted a new Perigee work order.",
+    fromName: "Perigee Work Orders",
+  });
+}
+
+async function sendAppointmentEmail(env, appointment, options = {}) {
   const apiKey = env.RESEND_API_KEY;
   const to = env.ADMIN_EMAIL || "ma@goperigee.com";
   const from = env.FROM_EMAIL || "bookings@goperigee.com";
 
   if (!apiKey) return { ok: false, warning: "RESEND_API_KEY is not configured, so no email was sent." };
 
-  const subject = `New Perigee appointment: ${appointment.service}`;
-  const html = appointmentEmailHtml(appointment);
-  const text = appointmentEmailText(appointment);
+  const subject = options.subject || `New Perigee appointment: ${appointment.service}`;
+  const html = appointmentEmailHtml(appointment, options.intro);
+  const text = appointmentEmailText(appointment, options.intro);
 
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: `Perigee Bookings <${from}>`,
+        from: `${options.fromName || "Perigee Bookings"} <${from}>`,
         to: [to],
         reply_to: appointment.email,
         subject,
@@ -663,18 +838,18 @@ async function sendMemberWelcomeEmail(env, member) {
       from: `Perigee Portal <${from}>`,
       to: [to],
       reply_to: member.email,
-      subject: `New Perigee portal account: ${member.full_name}`,
-      html: `<div style="font-family:Arial,sans-serif;color:#172033;line-height:1.5"><h1 style="color:#06265a">New customer account</h1><p>${escapeHtml(member.full_name)} created a portal account.</p><table cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;max-width:720px">${row("Name", member.full_name)}${row("Email", member.email)}${row("Phone", member.phone || "—")}${row("Property", member.property_address || "—")}${row("Status", member.membership_status || "pending")}</table></div>`,
+      subject: `New Perigee customer signup: ${member.full_name}`,
+      html: `<div style="font-family:Arial,sans-serif;color:#172033;line-height:1.5"><h1 style="color:#06265a">New customer account</h1><p>${escapeHtml(member.full_name)} created a portal account. Check whether the customer has used the same email for Stripe membership payment.</p><table cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;max-width:720px">${row("Name", member.full_name)}${row("Email", member.email)}${row("Phone", member.phone || "—")}${row("Property", member.property_address || "—")}${row("Status", member.membership_status || "pending")}</table></div>`,
       text: [`New customer account`, `Name: ${member.full_name}`, `Email: ${member.email}`, `Phone: ${member.phone || "—"}`, `Property: ${member.property_address || "—"}`, `Status: ${member.membership_status || "pending"}`].join("\n"),
     }),
   });
 }
 
-function appointmentEmailHtml(a) {
+function appointmentEmailHtml(a, intro = "A customer submitted a new Perigee appointment request.") {
   return `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#172033">
       <h1 style="color:#06265a">New appointment request</h1>
-      <p>A customer submitted a new Perigee appointment request.</p>
+      <p>${escapeHtml(intro)}</p>
       <table cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;max-width:720px">
         ${row("Request ID", a.id)}
         ${row("Account ID", a.userId || "No portal account attached")}
@@ -693,9 +868,10 @@ function appointmentEmailHtml(a) {
   `;
 }
 
-function appointmentEmailText(a) {
+function appointmentEmailText(a, intro = "A customer submitted a new Perigee appointment request.") {
   return [
     "New Perigee appointment request",
+    intro,
     `Request ID: ${a.id}`,
     `Account ID: ${a.userId || "No portal account attached"}`,
     `Name: ${a.fullName}`,

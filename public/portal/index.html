@@ -17,7 +17,8 @@
       </a>
       <nav class="nav-links" aria-label="Main navigation">
         <a href="/">Home</a>
-        <a data-membership-link href="https://buy.stripe.com/placeholder">Membership</a>
+        <a data-membership-link href="https://buy.stripe.com/4gM7sNewm0td1JwaBs8og00">Membership</a>
+        <a href="/terms/">Terms</a>
         <button id="portalLogoutTop" class="btn small secondary hidden" type="button">Log out</button>
       </nav>
     </div>
@@ -29,17 +30,21 @@
         <div>
           <div class="kicker">Customer account portal</div>
           <h1>Log in, schedule, and track your Perigee services.</h1>
-          <p class="lead">Members can request service from their account, view appointment history, update property details, and access the $199/month membership link.</p>
+          <p class="lead">Members can request service from their account, view appointment history, update property details, and use member benefits. Use the same email for your Perigee portal account and Stripe checkout so payment can activate your membership.</p>
         </div>
         <aside class="price-card compact-price-card">
           <h2>$199/month</h2>
-          <p>Includes mowing, edging, gutter cleaning, fertilizer booking, and free inspections.</p>
+          <p>The $199/month membership includes exactly:</p>
           <ul class="checklist">
-            <li>Free member inspections</li>
-            <li>Discounted add-on services</li>
-            <li>Account-based appointment tracking</li>
+            <li>Up to weekly mowing services</li>
+            <li>4 yearly fertilization services</li>
+            <li>Twice yearly gutter cleaning</li>
+            <li>Free inspections and quotes</li>
+            <li>Priority scheduling</li>
+            <li>Discounted rates on other services</li>
           </ul>
-          <a class="btn gold full" data-membership-link href="https://buy.stripe.com/placeholder">Start membership</a>
+          <p class="help terms-help">Important: use the same email in Stripe and in this portal.</p>
+          <a class="btn gold full" data-membership-link href="https://buy.stripe.com/4gM7sNewm0td1JwaBs8og00">Start membership</a>
         </aside>
       </div>
     </section>
@@ -63,7 +68,7 @@
 
         <form id="registerForm" class="card form-card">
           <h2>Create account</h2>
-          <p class="muted">Create a portal account so your appointments stay attached to your property profile.</p>
+          <p class="muted">Create a portal account so your appointments stay attached to your property profile. If you buy the membership through Stripe, use this same email address.</p>
           <div id="registerResult" class="notice hidden" role="status"></div>
           <div class="field-grid">
             <div class="field">
@@ -88,7 +93,92 @@
             <input id="registerPassword" name="password" type="password" autocomplete="new-password" minlength="8" required />
             <span class="help">Use at least 8 characters.</span>
           </div>
+          <label class="check-field"><input name="termsAccepted" type="checkbox" required /> <span>I agree to the <a href="/terms/" target="_blank" rel="noopener">Perigee Membership Terms of Service</a>.</span></label>
           <button id="registerButton" class="btn green full" type="submit">Create portal account</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="guestBookingPanel">
+      <div class="container">
+        <form id="publicBookingForm" class="card form-card dashboard-card">
+          <div class="section-head compact-head">
+            <div>
+              <div class="kicker">No account needed</div>
+              <h2>Request a one-time appointment</h2>
+              <p class="muted">Use this form to request service without creating an account. Member benefits require a portal account and active membership.</p>
+            </div>
+          </div>
+          <div id="publicBookingResult" class="notice hidden" role="status"></div>
+
+          <input type="hidden" name="memberStatus" value="Guest request" />
+
+          <div class="field-grid">
+            <div class="field">
+              <label for="publicFullName">Full name *</label>
+              <input id="publicFullName" name="fullName" autocomplete="name" required />
+            </div>
+            <div class="field">
+              <label for="publicPhone">Phone *</label>
+              <input id="publicPhone" name="phone" autocomplete="tel" required />
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label for="publicEmail">Email *</label>
+              <input id="publicEmail" name="email" type="email" autocomplete="email" required />
+            </div>
+            <div class="field">
+              <label for="publicService">Service requested *</label>
+              <select id="publicService" name="service" required>
+                <option value="">Choose service</option>
+                <option>Mowing</option>
+                <option>Edging</option>
+                <option>Gutter cleaning</option>
+                <option>Fertilizer booking</option>
+                <option>Property inspection</option>
+                <option>Pest control</option>
+                <option>Window cleaning</option>
+                <option>Roof cleaning</option>
+                <option>Roof inspection</option>
+                <option>Other exterior service</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="publicPropertyAddress">Property address *</label>
+            <input id="publicPropertyAddress" name="propertyAddress" autocomplete="street-address" required />
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label for="publicRequestedDate">Preferred date *</label>
+              <input id="publicRequestedDate" name="requestedDate" type="date" required />
+            </div>
+            <div class="field">
+              <label>Preferred time *</label>
+              <div class="slot-row" aria-label="Suggested appointment times">
+                <button type="button" class="slot-button" data-public-slot="08:00">8:00 AM</button>
+                <button type="button" class="slot-button" data-public-slot="10:00">10:00 AM</button>
+                <button type="button" class="slot-button" data-public-slot="13:00">1:00 PM</button>
+                <button type="button" class="slot-button" data-public-slot="15:00">3:00 PM</button>
+              </div>
+              <input id="publicRequestedTime" name="requestedTime" type="time" class="visually-hidden" required />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="publicNotes">Notes</label>
+            <textarea id="publicNotes" name="notes" placeholder="Gate codes, preferred instructions, membership interest, or extra details."></textarea>
+            <span class="help">Guest requests do not include member benefits. To use benefits, create an account and use the same email as Stripe.</span>
+          </div>
+
+          <div class="form-actions">
+            <button id="publicBookingButton" class="btn" type="submit">Request guest appointment</button>
+            <a class="btn secondary" href="#authPanel">Create account instead</a>
+          </div>
         </form>
       </div>
     </section>
@@ -99,10 +189,11 @@
           <h2 id="welcomeName">Welcome</h2>
           <div id="membershipBadge" class="status requested">pending</div>
           <p id="profileSummary" class="muted portal-profile-summary">Your profile will appear here.</p>
-          <a class="btn gold full" data-membership-link href="https://buy.stripe.com/placeholder">Open membership payment</a>
+          <a class="btn gold full" data-membership-link href="https://buy.stripe.com/4gM7sNewm0td1JwaBs8og00">Open membership payment</a>
           <button id="refreshPortal" class="btn secondary full" type="button">Refresh portal</button>
           <button id="portalLogout" class="btn secondary full" type="button">Log out</button>
-          <div class="notice">Membership status is managed by Perigee. After payment, the owner can mark your portal account active.</div>
+          <div class="notice">Membership status updates automatically after Stripe payment when the Stripe email matches this portal account. Use the same email in both places.</div>
+          <div class="notice membership-terms-mini"><strong>Membership includes:</strong> up to weekly mowing services, 4 yearly fertilization services, twice yearly gutter cleaning, free inspections and quotes, priority scheduling, and discounted rates on other services. <a href="/terms/">View terms</a>.</div>
         </aside>
 
         <div class="portal-main">
@@ -112,7 +203,7 @@
             <div class="section-head compact-head">
               <div>
                 <h2>Request service</h2>
-                <p class="muted">This request uses the name, email, phone, and property address from your account.</p>
+                <p class="muted">This request uses the name, email, phone, and property address from your account. Active members can use included benefits and priority scheduling here.</p>
               </div>
             </div>
 
@@ -125,8 +216,8 @@
                     <option>Mowing</option>
                     <option>Edging</option>
                     <option>Gutter cleaning</option>
-                    <option>Fertilizer booking</option>
-                    <option>Free member inspection</option>
+                    <option>Fertilization service</option>
+                    <option>Free member inspection / quote</option>
                     <option>Pest control</option>
                     <option>Window cleaning</option>
                     <option>Roof cleaning</option>
@@ -220,6 +311,7 @@
       <div>
         <p><a href="mailto:ma@goperigee.com">ma@goperigee.com</a></p>
         <p><a href="/privacy/">Privacy</a></p>
+        <p><a href="/terms/">Terms</a></p>
       </div>
     </div>
   </footer>

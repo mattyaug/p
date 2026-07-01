@@ -430,3 +430,19 @@ th { color: var(--navy); background: #f7faff; font-size: 12px; text-transform: u
   .portal-auth-grid, .portal-layout { grid-template-columns: 1fr; }
   .portal-side { position: static; }
 }
+
+/* Terms and membership clarity additions */
+.narrow { max-width: 920px; }
+.terms-doc h2 { margin-top: 28px; }
+.terms-doc p { color: var(--muted); }
+.terms-help { margin-top: 12px; }
+.check-field {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  color: var(--muted);
+  margin: 12px 0 18px;
+}
+.check-field input { width: auto; margin-top: 3px; }
+.membership-terms-mini { font-size: 13px; }

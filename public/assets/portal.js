@@ -1,23 +1,29 @@
 const authPanel = document.querySelector("#authPanel");
 const portalPanel = document.querySelector("#portalPanel");
+const guestBookingPanel = document.querySelector("#guestBookingPanel");
 const loginForm = document.querySelector("#loginForm");
 const registerForm = document.querySelector("#registerForm");
 const profileForm = document.querySelector("#profileForm");
 const portalBookingForm = document.querySelector("#portalBookingForm");
+const publicBookingForm = document.querySelector("#publicBookingForm");
 const portalLogout = document.querySelector("#portalLogout");
 const portalLogoutTop = document.querySelector("#portalLogoutTop");
 const refreshPortal = document.querySelector("#refreshPortal");
 const membershipLinks = document.querySelectorAll("[data-membership-link]");
 const slotButtons = document.querySelectorAll("[data-slot]");
+const publicSlotButtons = document.querySelectorAll("[data-public-slot]");
 const portalRequestedTime = document.querySelector("#portalRequestedTime");
+const publicRequestedTime = document.querySelector("#publicRequestedTime");
 
 const loginResult = document.querySelector("#loginResult");
 const registerResult = document.querySelector("#registerResult");
+const publicBookingResult = document.querySelector("#publicBookingResult");
 const portalResult = document.querySelector("#portalResult");
 const loginButton = document.querySelector("#loginButton");
 const registerButton = document.querySelector("#registerButton");
 const profileButton = document.querySelector("#profileButton");
 const portalBookingButton = document.querySelector("#portalBookingButton");
+const publicBookingButton = document.querySelector("#publicBookingButton");
 
 const welcomeName = document.querySelector("#welcomeName");
 const membershipBadge = document.querySelector("#membershipBadge");
@@ -27,12 +33,21 @@ const customerEmptyState = document.querySelector("#customerEmptyState");
 const customerCountBadge = document.querySelector("#customerCountBadge");
 
 let currentMember = null;
+let baseMembershipLink = "https://buy.stripe.com/4gM7sNewm0td1JwaBs8og00";
 
 slotButtons.forEach((button) => {
   button.addEventListener("click", () => {
     slotButtons.forEach((item) => item.classList.remove("active"));
     button.classList.add("active");
     portalRequestedTime.value = button.dataset.slot;
+  });
+});
+
+publicSlotButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    publicSlotButtons.forEach((item) => item.classList.remove("active"));
+    button.classList.add("active");
+    publicRequestedTime.value = button.dataset.publicSlot;
   });
 });
 
@@ -52,12 +67,24 @@ function hideMessage(target) {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "Something went wrong.");
+  let response;
+  try {
+    response = await fetch(path, {
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      ...options,
+    });
+  } catch (error) {
+    throw new Error("The portal could not reach the server. Refresh and try again.");
+  }
+
+  const text = await response.text().catch(() => "");
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch (_) { data = {}; }
+
+  if (!response.ok) {
+    const fallback = text && text.length < 180 ? text : "Something went wrong.";
+    throw new Error(data.error || fallback);
+  }
   return data;
 }
 
@@ -66,12 +93,27 @@ async function loadPublicConfig() {
     const response = await fetch("/api/config");
     if (!response.ok) return;
     const config = await response.json();
-    if (config.stripeMembershipLink) {
-      membershipLinks.forEach((link) => { link.href = config.stripeMembershipLink; });
-    }
+    if (config.stripeMembershipLink) baseMembershipLink = config.stripeMembershipLink;
+    updateMembershipLinks();
   } catch (error) {
     console.warn("Config unavailable", error);
   }
+}
+
+function updateMembershipLinks() {
+  membershipLinks.forEach((link) => {
+    let href = baseMembershipLink;
+    if (currentMember?.email) {
+      try {
+        const url = new URL(baseMembershipLink, window.location.origin);
+        url.searchParams.set("locked_prefilled_email", currentMember.email);
+        href = url.toString();
+      } catch (_) {
+        href = baseMembershipLink;
+      }
+    }
+    link.href = href;
+  });
 }
 
 async function loadMe() {
@@ -84,8 +126,10 @@ async function loadMe() {
 function renderAuthState() {
   const loggedIn = !!currentMember;
   authPanel.classList.toggle("hidden", loggedIn);
+  guestBookingPanel.classList.toggle("hidden", loggedIn);
   portalPanel.classList.toggle("hidden", !loggedIn);
   portalLogoutTop.classList.toggle("hidden", !loggedIn);
+  updateMembershipLinks();
 
   if (!loggedIn) return;
 
@@ -175,7 +219,7 @@ registerForm.addEventListener("submit", async (event) => {
     registerForm.reset();
     renderAuthState();
     await loadPortalData();
-    showMessage(portalResult, "success", "Your portal account was created. You can schedule appointments now.");
+    showMessage(portalResult, "success", currentMember.membershipStatus === "active" ? "Your portal account was created and your membership is active." : "Your portal account was created. You can schedule appointments now.");
   } catch (error) {
     showMessage(registerResult, "error", error.message || "Could not create account.");
   } finally {
@@ -199,6 +243,24 @@ profileForm.addEventListener("submit", async (event) => {
   } finally {
     profileButton.disabled = false;
     profileButton.textContent = "Save profile";
+  }
+});
+
+publicBookingForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  hideMessage(publicBookingResult);
+  publicBookingButton.disabled = true;
+  publicBookingButton.textContent = "Sending request...";
+  try {
+    await api("/api/appointments", { method: "POST", body: JSON.stringify(formPayload(publicBookingForm)) });
+    publicBookingForm.reset();
+    publicSlotButtons.forEach((item) => item.classList.remove("active"));
+    showMessage(publicBookingResult, "success", "Appointment request received. Perigee will confirm your appointment window.");
+  } catch (error) {
+    showMessage(publicBookingResult, "error", error.message || "Could not request appointment.");
+  } finally {
+    publicBookingButton.disabled = false;
+    publicBookingButton.textContent = "Request guest appointment";
   }
 });
 

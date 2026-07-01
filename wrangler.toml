@@ -1,7 +1,6 @@
-name = "p"
+name = "perigee-website"
 main = "src/index.js"
 compatibility_date = "2026-06-28"
-
 
 [assets]
 directory = "./public"
@@ -14,12 +13,14 @@ BUSINESS_NAME = "Perigee Property Management"
 SERVICE_AREA = "Portland"
 ADMIN_EMAIL = "ma@goperigee.com"
 FROM_EMAIL = "bookings@goperigee.com"
-STRIPE_MEMBERSHIP_LINK = "https://buy.stripe.com/placeholder"
+STRIPE_MEMBERSHIP_LINK = "https://buy.stripe.com/4gM7sNewm0td1JwaBs8og00"
 
-# Add the D1 database binding after you create it in Cloudflare:
+# Optional permanent D1 binding for Wrangler deploys.
+# Keep your current Cloudflare dashboard binding if it already works.
+# To make this repo-level binding permanent, uncomment this block and paste your real D1 database_id.
 # [[d1_databases]]
 # binding = "DB"
 # database_name = "perigee_appointments"
 # database_id = "PASTE_YOUR_D1_DATABASE_ID_HERE"
 #
-# Set ADMIN_TOKEN and RESEND_API_KEY as Worker secrets/environment variables in Cloudflare.
+# Set ADMIN_TOKEN, RESEND_API_KEY, and STRIPE_WEBHOOK_SECRET as Worker secrets/environment variables in Cloudflare.
