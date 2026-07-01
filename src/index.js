@@ -14,7 +14,7 @@ const ALLOWED_STATUSES = new Set(["requested", "confirmed", "completed", "cancel
 const ALLOWED_MEMBER_STATUSES = new Set(["pending", "active", "inactive", "canceled"]);
 const SESSION_DAYS = 30;
 const COOKIE_NAME = "perigee_session";
-const PASSWORD_ITERATIONS = 120000;
+const PASSWORD_ITERATIONS = 30000;
 
 export default {
   async fetch(request, env, ctx) {
