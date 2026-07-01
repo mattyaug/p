@@ -1,0 +1,24 @@
+name = "perigee-website"
+main = "src/index.js"
+compatibility_date = "2026-06-28"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"
+
+[vars]
+BUSINESS_NAME = "Perigee Property Management"
+SERVICE_AREA = "Portland"
+ADMIN_EMAIL = "ma@goperigee.com"
+FROM_EMAIL = "bookings@goperigee.com"
+STRIPE_MEMBERSHIP_LINK = "https://buy.stripe.com/placeholder"
+
+# Add the D1 database binding after you create it in Cloudflare:
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "perigee_appointments"
+# database_id = "PASTE_YOUR_D1_DATABASE_ID_HERE"
+#
+# Set ADMIN_TOKEN and RESEND_API_KEY as Worker secrets/environment variables in Cloudflare.

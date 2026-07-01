@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Owner Dashboard | Perigee Property Management</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <link rel="icon" href="/assets/perigee-logo.jpeg" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="/owner/">
+        <img class="logo" src="/assets/perigee-logo.jpeg" alt="Perigee Property Management logo" />
+        <span>Perigee Owner Dashboard</span>
+      </a>
+      <nav class="nav-links" aria-label="Owner navigation">
+        <a href="/">Public site</a>
+        <a href="/portal/">Customer portal</a>
+        <button id="refreshAppointments" class="btn small secondary" type="button">Refresh</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="kicker">Owner portal</div>
+        <h1>Appointment requests.</h1>
+        <p class="lead">View customer scheduling requests, confirm appointments, mark work complete, or cancel requests.</p>
+      </div>
+    </section>
+
+    <div class="container owner-layout">
+      <aside class="card owner-panel">
+        <h2>Owner access</h2>
+        <p class="muted">Enter the admin token you set in Cloudflare Pages environment variables.</p>
+        <form id="tokenForm" style="margin-top:16px">
+          <div class="field">
+            <label for="adminToken">Access code</label>
+            <input id="adminToken" type="password" autocomplete="current-password" placeholder="ADMIN_TOKEN" required />
+          </div>
+          <button class="btn full" type="submit">Load dashboard</button>
+        </form>
+        <button id="logoutAdmin" class="btn secondary full" type="button" style="margin-top:10px">Log out this browser</button>
+        <div id="tokenStatus" class="notice hidden" role="status"></div>
+
+        <div class="status-row">
+          <span class="status requested">requested</span>
+          <span class="status confirmed">confirmed</span>
+          <span class="status completed">completed</span>
+          <span class="status canceled">canceled</span>
+        </div>
+      </aside>
+
+      <section class="card table-card">
+        <div class="section-head" style="margin-bottom:18px">
+          <div>
+            <h2>All appointments</h2>
+            <p id="countBadge" class="muted">0 appointments</p>
+          </div>
+        </div>
+        <div id="emptyState" class="notice">No appointments loaded yet.</div>
+        <div class="table-wrap">
+          <table aria-label="Appointment requests">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Customer</th>
+                <th>Property</th>
+                <th>Service</th>
+                <th>Preferred time</th>
+                <th>Notes</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="appointmentsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/assets/owner.js"></script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Customer Portal | Perigee Property Management</title>
+  <meta name="description" content="Book Perigee Property Management services in Portland through the customer portal." />
+  <link rel="icon" href="/assets/perigee-logo.jpeg" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="/">
+        <img class="logo" src="/assets/perigee-logo.jpeg" alt="Perigee Property Management logo" />
+        <span>Perigee Customer Portal</span>
+      </a>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/owner/">Owner portal</a>
+        <a class="btn small" data-membership-link href="https://buy.stripe.com/placeholder">Join membership</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container grid-2">
+        <div>
+          <div class="kicker">Customer portal</div>
+          <h1>Request a Perigee appointment.</h1>
+          <p class="lead">Choose your service, preferred date and time, then submit your property details. Perigee will follow up to confirm your appointment window.</p>
+        </div>
+        <aside class="price-card">
+          <h2>$199/month</h2>
+          <p>Membership includes mowing, edging, gutter cleaning, fertilizer booking, and free inspections.</p>
+          <ul class="checklist">
+            <li>Free member inspections</li>
+            <li>Discounted add-on services</li>
+            <li>Easy appointment requests</li>
+          </ul>
+          <a class="btn gold full" data-membership-link href="https://buy.stripe.com/placeholder">Start membership</a>
+        </aside>
+      </div>
+    </section>
+
+    <section>
+      <div class="container form-wrap">
+        <aside class="card form-card">
+          <h2>Available requests</h2>
+          <p class="muted">Members receive core service booking and free inspections. Discounted add-ons are available for members.</p>
+          <ul class="checklist dark">
+            <li>Mowing</li>
+            <li>Edging</li>
+            <li>Gutter cleaning</li>
+            <li>Fertilizer booking</li>
+            <li>Free inspection</li>
+            <li>Pest control</li>
+            <li>Window cleaning</li>
+            <li>Roof cleaning and inspection</li>
+          </ul>
+          <div class="notice">Submitting this form creates a request. The appointment is not final until Perigee confirms it.</div>
+        </aside>
+
+        <form id="bookingForm" class="card form-card">
+          <h2>Appointment scheduler</h2>
+          <p class="muted">Fields marked required must be completed.</p>
+          <div id="bookingResult" class="notice hidden" role="status"></div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label for="fullName">Full name *</label>
+              <input id="fullName" name="fullName" autocomplete="name" required />
+            </div>
+            <div class="field">
+              <label for="phone">Phone *</label>
+              <input id="phone" name="phone" autocomplete="tel" required />
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label for="email">Email *</label>
+              <input id="email" name="email" type="email" autocomplete="email" required />
+            </div>
+            <div class="field">
+              <label for="memberStatus">Membership status *</label>
+              <select id="memberStatus" name="memberStatus" required>
+                <option value="">Choose one</option>
+                <option>Current member</option>
+                <option>Interested in membership</option>
+                <option>Not a member yet</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="propertyAddress">Property address *</label>
+            <input id="propertyAddress" name="propertyAddress" autocomplete="street-address" required />
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label for="service">Service requested *</label>
+              <select id="service" name="service" required>
+                <option value="">Choose service</option>
+                <option>Mowing</option>
+                <option>Edging</option>
+                <option>Gutter cleaning</option>
+                <option>Fertilizer booking</option>
+                <option>Free member inspection</option>
+                <option>Pest control</option>
+                <option>Window cleaning</option>
+                <option>Roof cleaning</option>
+                <option>Roof inspection</option>
+                <option>Other exterior service</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="requestedDate">Preferred date *</label>
+              <input id="requestedDate" name="requestedDate" type="date" required />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Preferred time *</label>
+            <div class="slot-row" aria-label="Suggested appointment times">
+              <button type="button" class="slot-button" data-slot="08:00">8:00 AM</button>
+              <button type="button" class="slot-button" data-slot="10:00">10:00 AM</button>
+              <button type="button" class="slot-button" data-slot="13:00">1:00 PM</button>
+              <button type="button" class="slot-button" data-slot="15:00">3:00 PM</button>
+              <button type="button" class="slot-button" data-slot="17:00">5:00 PM</button>
+            </div>
+            <input id="requestedTime" name="requestedTime" type="time" required style="margin-top:10px" />
+            <span class="help">Pick a suggested time or enter a custom preferred time.</span>
+          </div>
+
+          <div class="field">
+            <label for="notes">Property notes</label>
+            <textarea id="notes" name="notes" placeholder="Gate codes, access details, service notes, pets, preferred contact method, etc."></textarea>
+          </div>
+
+          <button id="submitBooking" class="btn full" type="submit">Request appointment</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div>
+        <strong>Perigee Property Management</strong>
+        <p>Exterior property care for Portland.</p>
+      </div>
+      <p><a href="mailto:ma@goperigee.com">ma@goperigee.com</a></p>
+        <p><a href="/privacy/">Privacy</a></p>
+    </div>
+  </footer>
+
+  <script src="/assets/portal.js"></script>
+</body>
+</html>
