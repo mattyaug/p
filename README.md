@@ -19,3 +19,6 @@ This update fixes the review workflow without changing the site structure.
 4. Let Cloudflare redeploy.
 
 No SQL migration is required.
+
+
+Appearance-only update: changed membership wording to “Priority + Same-Day Scheduling when Eligible” and added locally owned and operated messaging. No backend changes or SQL migration required.
