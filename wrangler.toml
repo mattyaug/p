@@ -1,6 +1,7 @@
-name = "perigee-website"
+name = "p"
 main = "src/index.js"
 compatibility_date = "2026-06-28"
+
 
 [assets]
 directory = "./public"
