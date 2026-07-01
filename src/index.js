@@ -17,6 +17,7 @@ const COOKIE_NAME = "perigee_session";
 const ADMIN_COOKIE_NAME = "perigee_owner_session";
 const ADMIN_SESSION_HOURS = 12;
 const PASSWORD_ITERATIONS = 30000;
+const OWNER_ACCESS_DEFAULT_EMAIL = "ma@goperigee.com";
 
 export default {
   async fetch(request, env, ctx) {
@@ -29,6 +30,10 @@ export default {
     try {
       if (url.pathname === "/api/config" && request.method === "GET") {
         return handleConfig(env);
+      }
+
+      if (url.pathname === "/api/member-count" && request.method === "GET") {
+        return handleMemberCount(env);
       }
 
       // Stripe webhook for automatic membership activation after payment.
@@ -70,17 +75,10 @@ export default {
         return handleCustomerCreateAppointment(request, env);
       }
 
-      // Owner/admin authentication endpoints.
-      if (url.pathname === "/api/admin/login" && request.method === "POST") {
-        return handleAdminLogin(request, env);
-      }
-
-      if (url.pathname === "/api/admin/logout" && request.method === "POST") {
-        return handleAdminLogout(request, env);
-      }
-
-      if (url.pathname === "/api/admin/me" && request.method === "GET") {
-        return handleAdminMe(request, env);
+      // Owner/admin endpoints are private and require Cloudflare Zero Trust Access.
+      // There is intentionally no public owner login screen or fallback login endpoint.
+      if (["/api/admin/login", "/api/admin/logout", "/api/admin/me"].includes(url.pathname)) {
+        return json({ error: "Not found." }, 404);
       }
 
       // Owner/admin endpoints.
@@ -130,6 +128,22 @@ function handleConfig(env) {
     serviceArea: env.SERVICE_AREA || "Portland",
     stripeMembershipLink: configuredStripeLink && configuredStripeLink !== "https://buy.stripe.com/placeholder" ? configuredStripeLink : defaultStripeMembershipLink,
   }, 200, { "Cache-Control": "public, max-age=60" });
+}
+
+async function handleMemberCount(env) {
+  const baseOffset = 27;
+  if (!env.DB) {
+    return json({ displayCount: baseOffset }, 200, { "Cache-Control": "public, max-age=300" });
+  }
+
+  try {
+    const row = await env.DB.prepare("SELECT COUNT(*) AS count FROM members WHERE membership_status = 'active'").first();
+    const activeMembers = Number(row?.count || 0);
+    return json({ displayCount: activeMembers + baseOffset }, 200, { "Cache-Control": "public, max-age=300" });
+  } catch (error) {
+    console.error("Member count error", error);
+    return json({ displayCount: baseOffset }, 200, { "Cache-Control": "public, max-age=300" });
+  }
 }
 
 async function handleStripeWebhook(request, env) {
@@ -672,28 +686,20 @@ async function serveStaticAsset(request, env) {
   const url = new URL(request.url);
 
   if (url.hostname === "owner.goperigee.com" && (url.pathname === "/" || url.pathname === "")) {
+    // Legacy owner subdomain support. The intended private pages are now on goperigee.com/owner/ and goperigee.com/logs/.
     url.pathname = "/owner/";
   }
 
   if (url.pathname === "/portal") url.pathname = "/portal/";
   if (url.pathname === "/owner") url.pathname = "/owner/";
-  if (url.pathname === "/owner-login") url.pathname = "/owner-login/";
+  if (url.pathname === "/logs") url.pathname = "/logs/";
+  if (url.pathname === "/owner/archive" || url.pathname === "/owner/archive/") url.pathname = "/logs/";
   if (url.pathname === "/privacy") url.pathname = "/privacy/";
   if (url.pathname === "/terms") url.pathname = "/terms/";
 
-  const ownerPath = url.pathname.startsWith("/owner/");
-  if (ownerPath && !(await isAdminSessionAuthorized(request, env))) {
-    const loginUrl = new URL(request.url);
-    loginUrl.pathname = "/owner-login/";
-    loginUrl.search = "";
-    return Response.redirect(loginUrl.toString(), 302);
-  }
-
-  if (url.pathname === "/owner-login/" && await isAdminSessionAuthorized(request, env)) {
-    const ownerUrl = new URL(request.url);
-    ownerUrl.pathname = "/owner/";
-    ownerUrl.search = "";
-    return Response.redirect(ownerUrl.toString(), 302);
+  const privateOwnerPage = url.pathname.startsWith("/owner/") || url.pathname.startsWith("/logs/");
+  if (privateOwnerPage && !isCloudflareAccessAuthorized(request, env)) {
+    return new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
   }
 
   const assetRequest = new Request(url.toString(), request);
@@ -953,29 +959,25 @@ async function handleAdminMe(request, env) {
 }
 
 async function authorize(request, env) {
-  if (!env.ADMIN_TOKEN) return { ok: false, status: 500, error: "ADMIN_TOKEN is not configured." };
-  if (!(await isAdminSessionAuthorized(request, env))) {
-    return { ok: false, status: 401, error: "Owner login required." };
+  if (!isCloudflareAccessAuthorized(request, env)) {
+    return { ok: false, status: 404, error: "Not found." };
   }
   return { ok: true };
 }
 
-async function isAdminSessionAuthorized(request, env) {
-  if (!env.ADMIN_TOKEN) return false;
-  const session = getCookie(request, ADMIN_COOKIE_NAME);
-  if (!session) return false;
-  const [payloadB64, signature] = session.split(".");
-  if (!payloadB64 || !signature) return false;
-  const expected = await hmacSha256Hex(env.ADMIN_TOKEN, payloadB64);
-  if (!timingSafeStringEqual(signature, expected)) return false;
+function isCloudflareAccessAuthorized(request, env) {
+  const allowed = String(env.OWNER_ACCESS_EMAILS || env.OWNER_ACCESS_EMAIL || OWNER_ACCESS_DEFAULT_EMAIL)
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
 
-  let payload;
-  try {
-    payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(payloadB64)));
-  } catch (_) {
-    return false;
-  }
-  return Number(payload?.exp || 0) > Math.floor(Date.now() / 1000);
+  const email = String(request.headers.get("Cf-Access-Authenticated-User-Email") || "").trim().toLowerCase();
+  if (!email || !allowed.includes(email)) return false;
+
+  // Cloudflare Access also sends a JWT assertion header. We require its presence so a direct public request
+  // cannot pass this check with only a spoofed email header.
+  const assertion = request.headers.get("Cf-Access-Jwt-Assertion") || request.headers.get("CF-Access-Jwt-Assertion") || "";
+  return assertion.length > 20;
 }
 
 async function createAdminSessionCookie(env) {

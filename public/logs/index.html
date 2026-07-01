@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Logs & Archives | Perigee Property Management</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <link rel="icon" href="/assets/perigee-logo.jpeg" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="/owner/">
+        <img class="logo" src="/assets/perigee-logo.jpeg" alt="Perigee Property Management logo" />
+        <span>Perigee Logs & Archives</span>
+      </a>
+      <nav class="nav-links" aria-label="Owner navigation">
+        <a href="/owner/">Dashboard</a>
+        <button id="refreshArchive" class="btn small secondary" type="button">Refresh</button>
+              </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="kicker">Owner records</div>
+        <h1>Logs and archived work orders.</h1>
+        <p class="lead">Work orders deleted from the main dashboard remain here for reference. This page also records portal signups, new guest requests, member work orders, archive actions, and status changes.</p>
+      </div>
+    </section>
+
+    <div class="container portal-main">
+      <section class="card table-card dashboard-card">
+        <div class="section-head compact-head">
+          <div>
+            <h2>Archived work orders</h2>
+            <p id="archivedCountBadge" class="muted">0 archived records</p>
+          </div>
+        </div>
+        <div id="archiveEmptyState" class="notice">No archived work orders yet.</div>
+        <div class="table-wrap">
+          <table aria-label="Archived work orders">
+            <thead>
+              <tr>
+                <th>Archived</th>
+                <th>Customer type</th>
+                <th>Customer</th>
+                <th>Property</th>
+                <th>Service</th>
+                <th>Preferred time</th>
+                <th>Notes</th>
+                <th>Original status</th>
+              </tr>
+            </thead>
+            <tbody id="archivedBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card table-card dashboard-card">
+        <div class="section-head compact-head">
+          <div>
+            <h2>Owner logs</h2>
+            <p id="logsCountBadge" class="muted">0 log entries</p>
+          </div>
+        </div>
+        <div id="logsEmptyState" class="notice">No logs loaded yet.</div>
+        <div class="table-wrap">
+          <table aria-label="Owner logs">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Event</th>
+                <th>Record</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="logsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/assets/archive.js"></script>
+</body>
+</html>

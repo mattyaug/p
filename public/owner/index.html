@@ -16,11 +16,10 @@
         <span>Perigee Owner Dashboard</span>
       </a>
       <nav class="nav-links" aria-label="Owner navigation">
-        <a href="/owner/archive/">Logs & archives</a>
+        <a href="/logs/">Logs & archives</a>
         <a href="/portal/">Customer portal</a>
         <button id="refreshDashboard" class="btn small secondary" type="button">Refresh</button>
-        <button id="logoutAdmin" class="btn small danger" type="button">Log out</button>
-      </nav>
+              </nav>
     </div>
   </header>
 
@@ -29,14 +28,14 @@
       <div class="container">
         <div class="kicker">Private owner portal</div>
         <h1>Work orders, appointments, and customer accounts.</h1>
-        <p class="lead">This dashboard is hidden behind an owner login cookie. A portal account means the customer can log in; an active member means the customer is approved for membership benefits.</p>
+        <p class="lead">This dashboard is restricted by Cloudflare Zero Trust Access. A portal account means the customer can log in; an active member means the customer is approved for membership benefits.</p>
       </div>
     </section>
 
     <div class="container owner-layout">
       <aside class="card owner-panel">
         <h2>Dashboard tools</h2>
-        <p id="tokenStatus" class="notice success" role="status">Owner access active.</p>
+        <p id="tokenStatus" class="notice success" role="status">Private owner access verified.</p>
         <div class="stat-stack" aria-label="Dashboard summary">
           <div><strong id="statTotal">0</strong><span>Total visible requests</span></div>
           <div><strong id="statMembers">0</strong><span>Active member work orders</span></div>
@@ -60,7 +59,7 @@
             <option value="canceled">Canceled status</option>
           </select>
         </div>
-        <a class="btn secondary full" href="/owner/archive/">Open logs & archives</a>
+        <a class="btn secondary full" href="/logs/">Open logs & archives</a>
         <p class="muted" style="margin-top:12px">“Delete from dashboard” removes a work order from this active view but keeps it in Logs & Archives.</p>
         <div class="status-row">
           <span class="status requested">requested/pending</span>

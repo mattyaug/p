@@ -1,7 +1,6 @@
 const tableBody = document.querySelector("#appointmentsBody");
 const membersBody = document.querySelector("#membersBody");
 const refreshButton = document.querySelector("#refreshDashboard");
-const logoutButton = document.querySelector("#logoutAdmin");
 const emptyState = document.querySelector("#emptyState");
 const memberEmptyState = document.querySelector("#memberEmptyState");
 const countBadge = document.querySelector("#countBadge");
@@ -133,8 +132,7 @@ async function fetchAdmin(path, options = {}) {
   });
   const data = await response.json().catch(() => ({}));
   if (response.status === 401) {
-    window.location.href = "/owner-login/";
-    throw new Error("Owner login required.");
+    throw new Error("Owner access is restricted by Cloudflare Access.");
   }
   if (!response.ok) throw new Error(data.error || "Request failed.");
   return data;
@@ -148,7 +146,7 @@ async function loadDashboard() {
       fetchAdmin("/api/admin/members"),
     ]);
     tokenStatus.className = "notice success";
-    tokenStatus.textContent = "Owner access active.";
+    tokenStatus.textContent = "Private owner access verified.";
     tokenStatus.classList.remove("hidden");
     allAppointments = appointmentsData.appointments || [];
     allMembers = membersData.members || [];
@@ -156,7 +154,7 @@ async function loadDashboard() {
     renderRows();
     renderMembers();
   } catch (error) {
-    if (String(error.message).includes("Owner login required")) return;
+    if (String(error.message).includes("Cloudflare Access")) return;
     tokenStatus.className = "notice error";
     tokenStatus.textContent = error.message || "Unable to load dashboard.";
     tokenStatus.classList.remove("hidden");
@@ -214,13 +212,8 @@ async function updateMemberStatus(id, membershipStatus) {
   }
 }
 
-async function logoutAdmin() {
-  await fetch("/api/admin/logout", { method: "POST" }).catch(() => null);
-  window.location.href = "/owner-login/";
-}
 
 refreshButton.addEventListener("click", loadDashboard);
-logoutButton.addEventListener("click", logoutAdmin);
 searchInput.addEventListener("input", renderRows);
 filterInput.addEventListener("change", renderRows);
 

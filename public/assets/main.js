@@ -19,3 +19,21 @@ async function loadPublicConfig() {
 }
 
 loadPublicConfig();
+
+
+async function loadMemberCount() {
+  const target = document.querySelector("[data-member-count]");
+  if (!target) return;
+  try {
+    const response = await fetch("/api/member-count");
+    if (!response.ok) return;
+    const data = await response.json();
+    if (typeof data.displayCount === "number") {
+      target.textContent = data.displayCount.toLocaleString();
+    }
+  } catch (error) {
+    console.warn("Member count unavailable", error);
+  }
+}
+
+loadMemberCount();

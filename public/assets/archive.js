@@ -1,7 +1,6 @@
 const archivedBody = document.querySelector("#archivedBody");
 const logsBody = document.querySelector("#logsBody");
 const refreshButton = document.querySelector("#refreshArchive");
-const logoutButton = document.querySelector("#logoutAdmin");
 const archiveEmptyState = document.querySelector("#archiveEmptyState");
 const logsEmptyState = document.querySelector("#logsEmptyState");
 const archivedCountBadge = document.querySelector("#archivedCountBadge");
@@ -75,8 +74,7 @@ async function fetchAdmin(path, options = {}) {
   const response = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
   const data = await response.json().catch(() => ({}));
   if (response.status === 401) {
-    window.location.href = "/owner-login/";
-    throw new Error("Owner login required.");
+    throw new Error("Owner access is restricted by Cloudflare Access.");
   }
   if (!response.ok) throw new Error(data.error || "Request failed.");
   return data;
@@ -89,7 +87,7 @@ async function loadArchive() {
     renderArchived(data.archivedAppointments || []);
     renderLogs(data.logs || []);
   } catch (error) {
-    if (String(error.message).includes("Owner login required")) return;
+    if (String(error.message).includes("Cloudflare Access")) return;
     archiveEmptyState.className = "notice error";
     archiveEmptyState.textContent = error.message || "Could not load archives.";
     archiveEmptyState.classList.remove("hidden");
@@ -98,11 +96,6 @@ async function loadArchive() {
   }
 }
 
-async function logoutAdmin() {
-  await fetch("/api/admin/logout", { method: "POST" }).catch(() => null);
-  window.location.href = "/owner-login/";
-}
 
 refreshButton.addEventListener("click", loadArchive);
-logoutButton.addEventListener("click", logoutAdmin);
 loadArchive();

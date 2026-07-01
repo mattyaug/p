@@ -168,6 +168,27 @@ p { margin: 0; }
 .muted { color: var(--muted); }
 
 .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.member-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 13px 16px;
+  border: 1px solid rgba(6,38,90,.12);
+  border-radius: 18px;
+  background: rgba(255,255,255,.82);
+  box-shadow: 0 14px 28px rgba(6,38,90,.08);
+}
+.member-counter strong {
+  color: var(--green);
+  font-size: 34px;
+  line-height: 1;
+}
+.member-counter span {
+  color: var(--navy);
+  font-weight: 750;
+}
+
 
 .card {
   background: var(--white);
