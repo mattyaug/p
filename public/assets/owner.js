@@ -135,10 +135,10 @@ function renderReviews() {
       <td>${escapeHtml(new Date(item.created_at).toLocaleString())}</td>
       <td>
         <div class="admin-actions">
-          <button class="btn small secondary" data-review-action="approved" data-id="${item.id}">Approve</button>
-          <button class="btn small secondary" data-review-action="pending" data-id="${item.id}">Pending</button>
-          <button class="btn small danger" data-review-action="rejected" data-id="${item.id}">Reject</button>
-          <button class="btn small danger outline-danger" data-review-delete="1" data-id="${item.id}">Delete</button>
+          <button class="btn small secondary" data-review-action="approved" data-id="${item.id}">Approve / show</button>
+          <button class="btn small secondary" data-review-action="pending" data-id="${item.id}">Back to pending</button>
+          <button class="btn small danger outline-danger" data-review-hide="1" data-id="${item.id}">Remove from website</button>
+          <button class="btn small secondary" data-review-archive="1" data-id="${item.id}">Move to logs, keep live</button>
         </div>
       </td>
     </tr>
@@ -272,15 +272,34 @@ async function updateReviewStatus(id, status) {
   }
 }
 
-async function deleteReview(id) {
-  const confirmed = window.confirm("Delete this review permanently? This removes it from the review approval list.");
+async function hideReviewFromWebsite(id) {
+  const confirmed = window.confirm("Remove this review from the public website but keep it in the owner panel?");
   if (!confirmed) return;
   try {
-    await fetchAdmin(`/api/admin/reviews/${id}`, { method: "DELETE" });
+    await fetchAdmin(`/api/admin/reviews/${id}`, {
+      method: "DELETE",
+      body: JSON.stringify({ mode: "hide_keep_panel" }),
+    });
     await loadDashboard();
   } catch (error) {
     tokenStatus.className = "notice error";
-    tokenStatus.textContent = error.message || "Could not delete review.";
+    tokenStatus.textContent = error.message || "Could not hide review.";
+    tokenStatus.classList.remove("hidden");
+  }
+}
+
+async function archiveReviewKeepLive(id) {
+  const confirmed = window.confirm("Move this review out of the owner panel and into logs/archives? If it is approved, it will stay visible on the public website.");
+  if (!confirmed) return;
+  try {
+    await fetchAdmin(`/api/admin/reviews/${id}`, {
+      method: "DELETE",
+      body: JSON.stringify({ mode: "archive_keep_live" }),
+    });
+    await loadDashboard();
+  } catch (error) {
+    tokenStatus.className = "notice error";
+    tokenStatus.textContent = error.message || "Could not move review to logs.";
     tokenStatus.classList.remove("hidden");
   }
 }
@@ -313,8 +332,11 @@ if (reviewsBody) {
       await updateReviewStatus(actionButton.dataset.id, actionButton.dataset.reviewAction);
       return;
     }
-    const deleteButton = event.target.closest("button[data-review-delete]");
-    if (deleteButton) await deleteReview(deleteButton.dataset.id);
+    const hideButton = event.target.closest("button[data-review-hide]");
+    if (hideButton) await hideReviewFromWebsite(hideButton.dataset.id);
+
+    const archiveButton = event.target.closest("button[data-review-archive]");
+    if (archiveButton) await archiveReviewKeepLive(archiveButton.dataset.id);
   });
 }
 

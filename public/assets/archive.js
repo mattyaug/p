@@ -1,10 +1,13 @@
 const archivedBody = document.querySelector("#archivedBody");
 const logsBody = document.querySelector("#logsBody");
+const archivedReviewsBody = document.querySelector("#archivedReviewsBody");
 const refreshButton = document.querySelector("#refreshArchive");
 const archiveEmptyState = document.querySelector("#archiveEmptyState");
 const logsEmptyState = document.querySelector("#logsEmptyState");
 const archivedCountBadge = document.querySelector("#archivedCountBadge");
 const logsCountBadge = document.querySelector("#logsCountBadge");
+const archivedReviewsCountBadge = document.querySelector("#archivedReviewsCountBadge");
+const archivedReviewsEmptyState = document.querySelector("#archivedReviewsEmptyState");
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -48,6 +51,23 @@ function renderArchived(appointments) {
   }).join("");
 }
 
+
+function renderArchivedReviews(reviews) {
+  if (!archivedReviewsBody) return;
+  archivedReviewsCountBadge.textContent = `${reviews.length} archived review${reviews.length === 1 ? "" : "s"}`;
+  archivedReviewsEmptyState.classList.toggle("hidden", reviews.length > 0);
+  archivedReviewsBody.innerHTML = reviews.map((item) => `
+    <tr>
+      <td>${escapeHtml(item.updated_at ? new Date(item.updated_at).toLocaleString() : "—")}</td>
+      <td><span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span><br><span class="muted">${escapeHtml(item.source || "website")}</span></td>
+      <td><strong>${escapeHtml(item.customer_name)}</strong><br><a href="mailto:${escapeHtml(item.email)}">${escapeHtml(item.email)}</a><br><span class="muted">${escapeHtml(item.city || "Portland")}</span></td>
+      <td>${escapeHtml(item.rating)}/5</td>
+      <td>${escapeHtml(item.review_text)}</td>
+      <td>${escapeHtml(item.service || "—")}</td>
+    </tr>
+  `).join("");
+}
+
 function summarizeDetails(details) {
   try {
     const parsed = JSON.parse(details || "{}");
@@ -85,6 +105,7 @@ async function loadArchive() {
   try {
     const data = await fetchAdmin("/api/admin/archive");
     renderArchived(data.archivedAppointments || []);
+    renderArchivedReviews(data.archivedReviews || []);
     renderLogs(data.logs || []);
   } catch (error) {
     if (String(error.message).includes("Cloudflare Access")) return;

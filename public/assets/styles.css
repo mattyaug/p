@@ -562,3 +562,17 @@ th { color: var(--navy); background: #f7faff; font-size: 12px; text-transform: u
   .city-photo-grid { grid-template-columns: 1fr; }
   .city-photo-grid img { height: 230px; transform: none !important; }
 }
+
+/* Owner dashboard button readability fix */
+.btn.outline-danger,
+.btn.danger.outline-danger {
+  background: #fff !important;
+  color: var(--danger) !important;
+  border: 1px solid rgba(169, 35, 35, .35) !important;
+  box-shadow: none !important;
+}
+.btn.outline-danger:hover,
+.btn.danger.outline-danger:hover {
+  background: rgba(169, 35, 35, .08) !important;
+  color: var(--danger) !important;
+}

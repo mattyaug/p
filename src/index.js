@@ -545,18 +545,29 @@ async function handleSubmitReview(request, env) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   await env.DB.prepare(`
-    INSERT INTO reviews (id, customer_name, email, city, rating, review_text, service, status, source, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'public_submission', ?, ?)
-  `).bind(id, customerName, email, city, rating, reviewText, service, now, now).run();
+    INSERT INTO reviews (id, customer_name, name, email, city, rating, review_text, body, service, status, source, archived, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'public_submission', 0, ?, ?)
+  `).bind(id, customerName, customerName, email, city, rating, reviewText, reviewText, service, now, now).run();
 
+  // Non-critical owner log/email failures should never make the customer see a failed review submission
+  // after the review has already been saved to the dashboard.
   await logOwnerEvent(env, {
     eventType: "review_submitted",
     entityType: "review",
     entityId: id,
     title: `New review submitted by ${customerName}`,
     details: JSON.stringify({ email, city, rating, service }),
-  });
-  await sendReviewNotificationEmail(env, { customerName, email, city, rating, reviewText, service, createdAt: now });
+  }).catch((error) => console.error("Review log failed", error));
+
+  await sendReviewNotificationEmail(env, {
+    customerName,
+    email,
+    city,
+    rating,
+    reviewText,
+    service,
+    createdAt: now,
+  }).catch((error) => console.error("Review notification email failed", error));
 
   return json({ ok: true, message: "Thank you. Your review has been submitted for approval." }, 201);
 }
@@ -568,8 +579,9 @@ async function handleAdminReviews(request, env) {
   await ensureReviewsSchema(env);
 
   const result = await env.DB.prepare(`
-    SELECT id, customer_name, email, city, rating, review_text, service, status, source, created_at, updated_at
+    SELECT id, customer_name, email, city, rating, review_text, service, status, source, archived, created_at, updated_at
     FROM reviews
+    WHERE COALESCE(archived, 0) = 0
     ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, created_at DESC
     LIMIT 500
   `).all();
@@ -598,7 +610,7 @@ async function handleUpdateReview(request, env, id) {
     entityId: id,
     title: `Review marked ${status}`,
     details: JSON.stringify({ status }),
-  });
+  }).catch((error) => console.error("Review status log failed", error));
   return json({ ok: true, id, status });
 }
 
@@ -609,18 +621,47 @@ async function handleDeleteReview(request, env, id) {
   await ensureReviewsSchema(env);
 
   id = String(id || "").trim();
-  const existing = await env.DB.prepare("SELECT id, customer_name, email, rating FROM reviews WHERE id = ? LIMIT 1").bind(id).first();
+  const payload = await request.json().catch(() => ({}));
+  const mode = String(payload?.mode || "archive_keep_live").trim();
+  const existing = await env.DB.prepare("SELECT id, customer_name, email, rating, status FROM reviews WHERE id = ? LIMIT 1").bind(id).first();
   if (!existing) return json({ error: "Review not found." }, 404);
 
-  await env.DB.prepare("DELETE FROM reviews WHERE id = ?").bind(id).run();
+  const now = new Date().toISOString();
+
+  if (mode === "hide_keep_panel") {
+    await env.DB.prepare("UPDATE reviews SET status = 'rejected', archived = 0, updated_at = ? WHERE id = ?").bind(now, id).run();
+    await logOwnerEvent(env, {
+      eventType: "review_hidden_from_website",
+      entityType: "review",
+      entityId: id,
+      title: `Review removed from website: ${existing.customer_name}`,
+      details: JSON.stringify({ email: existing.email, rating: existing.rating, previousStatus: existing.status }),
+    }).catch((error) => console.error("Review hide log failed", error));
+    return json({ ok: true, id, mode, status: "rejected" });
+  }
+
+  if (mode === "permanent_delete") {
+    await env.DB.prepare("DELETE FROM reviews WHERE id = ?").bind(id).run();
+    await logOwnerEvent(env, {
+      eventType: "review_permanently_deleted",
+      entityType: "review",
+      entityId: id,
+      title: `Review permanently deleted: ${existing.customer_name}`,
+      details: JSON.stringify({ email: existing.email, rating: existing.rating, previousStatus: existing.status }),
+    }).catch((error) => console.error("Review permanent delete log failed", error));
+    return json({ ok: true, id, mode });
+  }
+
+  // Default: move out of the owner dashboard into logs/archives, but keep it live if it was approved.
+  await env.DB.prepare("UPDATE reviews SET archived = 1, updated_at = ? WHERE id = ?").bind(now, id).run();
   await logOwnerEvent(env, {
-    eventType: "review_deleted",
+    eventType: "review_archived_keep_live",
     entityType: "review",
     entityId: id,
-    title: `Review deleted: ${existing.customer_name}`,
-    details: JSON.stringify({ email: existing.email, rating: existing.rating }),
-  });
-  return json({ ok: true, id });
+    title: `Review moved to logs: ${existing.customer_name}`,
+    details: JSON.stringify({ email: existing.email, rating: existing.rating, status: existing.status, publicVisibility: existing.status === "approved" ? "still visible" : "not visible" }),
+  }).catch((error) => console.error("Review archive log failed", error));
+  return json({ ok: true, id, mode, stillPublic: existing.status === "approved" });
 }
 
 async function handleListAppointments(request, env) {
@@ -725,6 +766,16 @@ async function handleAdminArchive(request, env) {
     LIMIT 500
   `).all();
 
+  await ensureReviewsSchema(env);
+
+  const archivedReviews = await env.DB.prepare(`
+    SELECT id, customer_name, email, city, rating, review_text, service, status, source, updated_at, created_at
+    FROM reviews
+    WHERE COALESCE(archived, 0) = 1
+    ORDER BY COALESCE(updated_at, created_at) DESC
+    LIMIT 500
+  `).all();
+
   const logs = await env.DB.prepare(`
     SELECT id, event_type, entity_type, entity_id, title, details, created_at
     FROM owner_logs
@@ -732,7 +783,7 @@ async function handleAdminArchive(request, env) {
     LIMIT 1000
   `).all();
 
-  return json({ archivedAppointments: appointments.results || [], logs: logs.results || [] });
+  return json({ archivedAppointments: appointments.results || [], archivedReviews: archivedReviews.results || [], logs: logs.results || [] });
 }
 
 async function handleListMembers(request, env) {
@@ -1174,7 +1225,13 @@ async function ensureReviewsSchema(env) {
       updated_at TEXT NOT NULL
     )
   `).run().catch(() => null);
+  await env.DB.prepare("ALTER TABLE reviews ADD COLUMN name TEXT").run().catch(() => null);
+  await env.DB.prepare("ALTER TABLE reviews ADD COLUMN body TEXT").run().catch(() => null);
+  await env.DB.prepare("ALTER TABLE reviews ADD COLUMN archived INTEGER NOT NULL DEFAULT 0").run().catch(() => null);
+  await env.DB.prepare("UPDATE reviews SET name = customer_name WHERE name IS NULL OR name = ''").run().catch(() => null);
+  await env.DB.prepare("UPDATE reviews SET body = review_text WHERE body IS NULL OR body = ''").run().catch(() => null);
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_reviews_status ON reviews (status)").run().catch(() => null);
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_reviews_archived ON reviews (archived)").run().catch(() => null);
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_reviews_created_at ON reviews (created_at)").run().catch(() => null);
   // Starter reviews are no longer auto-seeded. Reviews remain under owner control.
 }
