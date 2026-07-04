@@ -176,7 +176,7 @@ function renderCustomerAppointments(appointments) {
 
 function formatDateTime(dateValue, timeValue) {
   if (!dateValue) return "—";
-  return `${dateValue}${timeValue ? ` at ${timeValue}` : ""}`;
+  return `${dateValue}`;
 }
 
 function escapeHtml(value) {
@@ -255,7 +255,7 @@ publicBookingForm.addEventListener("submit", async (event) => {
     await api("/api/appointments", { method: "POST", body: JSON.stringify(formPayload(publicBookingForm)) });
     publicBookingForm.reset();
     publicSlotButtons.forEach((item) => item.classList.remove("active"));
-    showMessage(publicBookingResult, "success", "Appointment request received. Perigee will confirm your appointment window.");
+    showMessage(publicBookingResult, "success", "Appointment request received. Perigee will confirm the service day.");
   } catch (error) {
     showMessage(publicBookingResult, "error", error.message || "Could not request appointment.");
   } finally {
@@ -274,7 +274,7 @@ portalBookingForm.addEventListener("submit", async (event) => {
     portalBookingForm.reset();
     slotButtons.forEach((item) => item.classList.remove("active"));
     await loadPortalData();
-    showMessage(portalResult, "success", "Appointment request received. Perigee will confirm your appointment window.");
+    showMessage(portalResult, "success", "Appointment request received. Perigee will confirm the service day.");
   } catch (error) {
     showMessage(portalResult, "error", error.message || "Could not request appointment.");
   } finally {

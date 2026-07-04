@@ -6,10 +6,9 @@ const REQUIRED_FIELDS = [
   "service",
   "memberStatus",
   "requestedDate",
-  "requestedTime",
 ];
 
-const PORTAL_REQUIRED_FIELDS = ["service", "requestedDate", "requestedTime"];
+const PORTAL_REQUIRED_FIELDS = ["service", "requestedDate"];
 const ALLOWED_STATUSES = new Set(["requested", "confirmed", "completed", "canceled"]);
 const ALLOWED_MEMBER_STATUSES = new Set(["pending", "active", "inactive", "canceled"]);
 const SESSION_DAYS = 30;
@@ -332,7 +331,7 @@ async function handleCreateAppointment(request, env) {
 
   if (!isValidEmail(data.email)) return json({ error: "Please enter a valid email address." }, 400);
   if (!isIsoDate(data.requestedDate)) return json({ error: "Please choose a valid requested date." }, 400);
-  if (!isTime(data.requestedTime)) return json({ error: "Please choose a valid requested time." }, 400);
+  data.requestedTime = "";
 
   const appointment = await insertAppointment(env, { ...data, userId: null });
   await logOwnerEvent(env, {
@@ -495,7 +494,7 @@ async function handleCustomerCreateAppointment(request, env) {
   const missing = PORTAL_REQUIRED_FIELDS.filter((field) => !data[field]);
   if (missing.length) return json({ error: `Missing required field: ${missing[0]}` }, 400);
   if (!isIsoDate(data.requestedDate)) return json({ error: "Please choose a valid requested date." }, 400);
-  if (!isTime(data.requestedTime)) return json({ error: "Please choose a valid requested time." }, 400);
+  data.requestedTime = "";
 
   const appointment = await insertAppointment(env, data);
   await logOwnerEvent(env, {
@@ -957,7 +956,7 @@ function normalizePayload(payload) {
     service: trimLimit(payload.service, 120),
     memberStatus: trimLimit(payload.memberStatus, 120),
     requestedDate: trimLimit(payload.requestedDate, 20),
-    requestedTime: trimLimit(payload.requestedTime, 20),
+    requestedTime: "",
     notes: trimLimit(payload.notes, 2000),
   };
 }
@@ -974,7 +973,7 @@ function normalizePortalAppointmentPayload(payload, member) {
     service: trimLimit(payload.service, 120),
     memberStatus: displayStatus,
     requestedDate: trimLimit(payload.requestedDate, 20),
-    requestedTime: trimLimit(payload.requestedTime, 20),
+    requestedTime: "",
     notes: trimLimit(payload.notes, 2000),
   };
 }
@@ -1252,6 +1251,28 @@ async function ensureOwnerSchema(env) {
 }
 
 
+async function logOwnerEvent(env, event = {}) {
+  try {
+    if (!env.DB) return;
+    await ensureOwnerSchema(env);
+    const now = new Date().toISOString();
+    await env.DB.prepare(`
+      INSERT INTO owner_logs (id, event_type, entity_type, entity_id, title, details, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      crypto.randomUUID(),
+      String(event.eventType || "event"),
+      String(event.entityType || "system"),
+      String(event.entityId || ""),
+      String(event.title || "Perigee activity"),
+      String(event.details || "{}"),
+      now
+    ).run();
+  } catch (error) {
+    console.error("Owner log failed", error);
+  }
+}
+
 async function ensureReviewsSchema(env) {
   if (!env.DB) return;
   await env.DB.prepare(`
@@ -1388,7 +1409,7 @@ function appointmentEmailHtml(a, intro = "A customer submitted a new Perigee app
         ${row("Service", a.service)}
         ${row("Membership status", a.memberStatus)}
         ${row("Preferred date", a.requestedDate)}
-        ${row("Preferred time", a.requestedTime)}
+        ${row("Preferred scheduling", "Day only")}
         ${row("Notes", a.notes || "—")}
         ${row("Created", a.createdAt)}
       </table>
@@ -1409,7 +1430,7 @@ function appointmentEmailText(a, intro = "A customer submitted a new Perigee app
     `Service: ${a.service}`,
     `Membership status: ${a.memberStatus}`,
     `Preferred date: ${a.requestedDate}`,
-    `Preferred time: ${a.requestedTime}`,
+    `Preferred scheduling: Day only`,
     `Notes: ${a.notes || "—"}`,
     `Created: ${a.createdAt}`,
   ].join("\n");

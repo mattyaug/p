@@ -155,19 +155,8 @@
 
           <div class="field-grid">
             <div class="field">
-              <label for="publicRequestedDate">Preferred date *</label>
+              <label for="publicRequestedDate">Preferred service day *</label>
               <input id="publicRequestedDate" name="requestedDate" type="date" required />
-            </div>
-            <div class="field">
-              <label for="publicRequestedTime">Preferred time *</label>
-              <div class="slot-row" aria-label="Suggested appointment times">
-                <button type="button" class="slot-button" data-public-slot="08:00">8:00 AM</button>
-                <button type="button" class="slot-button" data-public-slot="10:00">10:00 AM</button>
-                <button type="button" class="slot-button" data-public-slot="13:00">1:00 PM</button>
-                <button type="button" class="slot-button" data-public-slot="15:00">3:00 PM</button>
-              </div>
-              <input id="publicRequestedTime" name="requestedTime" type="time" required />
-              <span class="help">Choose a suggested time or enter any preferred time.</span>
             </div>
           </div>
 
@@ -229,22 +218,11 @@
                   </select>
                 </div>
                 <div class="field">
-                  <label for="portalRequestedDate">Preferred date *</label>
+                  <label for="portalRequestedDate">Preferred service day *</label>
                   <input id="portalRequestedDate" name="requestedDate" type="date" required />
                 </div>
               </div>
 
-              <div class="field">
-                <label for="portalRequestedTime">Preferred time *</label>
-                <div class="slot-row" aria-label="Suggested appointment times">
-                  <button type="button" class="slot-button" data-slot="08:00">8:00 AM</button>
-                  <button type="button" class="slot-button" data-slot="10:00">10:00 AM</button>
-                  <button type="button" class="slot-button" data-slot="13:00">1:00 PM</button>
-                  <button type="button" class="slot-button" data-slot="15:00">3:00 PM</button>
-                </div>
-                <input id="portalRequestedTime" name="requestedTime" type="time" required />
-                <span class="help">Choose a suggested time or enter any preferred time.</span>
-              </div>
 
               <div class="field">
                 <label for="portalNotes">Notes</label>
@@ -269,7 +247,7 @@
                   <tr>
                     <th>Status</th>
                     <th>Service</th>
-                    <th>Preferred time</th>
+                    <th>Preferred day</th>
                     <th>Property</th>
                     <th>Notes</th>
                     <th>Created</th>

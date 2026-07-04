@@ -1,3 +1,15 @@
+# Perigee Day-Only Appointment Update
+
+This update keeps the existing backend structure and removes customer appointment time selection. Customers now choose only a service day. The Worker stores an empty `requested_time` value so the existing D1 schema remains compatible.
+
+Changes:
+- Guest appointment requests require only a preferred service day.
+- Logged-in member work orders require only a preferred service day.
+- Appointment displays show the day only in the portal, owner panel, and logs.
+- Added a safe owner activity logger so appointment requests do not fail after saving if logging has an issue.
+
+No SQL migration is required. Upload the unzipped contents to GitHub, commit, and let Cloudflare redeploy.
+
 # Perigee Review Reliability Fix
 
 This update fixes the review workflow without changing the site structure.

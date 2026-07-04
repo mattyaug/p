@@ -20,8 +20,7 @@ function escapeHtml(value) {
 
 function formatDateTime(dateValue, timeValue) {
   if (!dateValue) return "—";
-  const time = timeValue || "";
-  return `${dateValue}${time ? ` at ${time}` : ""}`;
+  return `${dateValue}`;
 }
 
 function customerTypeLabel(item) {
